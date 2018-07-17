@@ -5,60 +5,48 @@ from threading import Thread, Lock
 from pandamonium.util import IDGenerator
 
 
-# TODO: Overhaul from scratch!
-def make_internal_socket():
-    class InternalSocket:
-        def __init__(self, inbound, outbound):
-            self.inbound = inbound
-            self.outbound = outbound
-
-        def set_agent(self, agent):
-            self.agent = agent
-
-        def listen(self):
+class Connection:
+    """An active connection."""
+    def __init__(self, socket, message_director, connection_id):
+        self.socket = socket
+        self.message_director = message_director
+        self.connection_id = connection_id
+        if self.threaded_connections:
+            # TODO: Sart autonomous thread to read() messages
             pass
 
-        def connect(self):
-            pass
+    def disconnect(self, reason):
+        # TODO: Implement? Or let it exist only implicitly?
+        pass
 
-        def send(self, message):
-            self.outbound.put(message)
-
-        def read(self):
-            try:
-                return self.inbound.get_nowait()
-            except Empty:
-                return
-
-    client_to_agent = Queue()
-    agent_to_client = Queue()
-
-    client_socket = InternalSocket(agent_to_client, client_to_agent)
-    agent_socket = InternalSocket(client_to_agent, agent_to_client)
-
-    return (client_socket, agent_socket)
+    def read(self):
+        # TODO: Read message (with timeout), interpret, call:
+        # self.message_director.create_message(
+        #     self.connection_id,
+        #     to_channel,
+        #     message_type,
+        #     *[args],
+        # )
+        pass
 
 
 class NetworkListener:
-    def __init__(self, interface='127.0.0.1', port=50550, listeners=1,
-                 timeout=5.0):
-        self.agent = None
+    def __init__(self):
         self.id_gen = None
 
         self.socket = socket.socket()
-        self.socket.bind((interface, port))
+        self.socket.bind((self.interface, self.port))
         self.socket.listen()
-        self.socket.settimeout(timeout)
+        self.socket.settimeout(self.timeout)
 
         self.listening_sockets = []
-        self.listeners = listeners
+        self.listeners = self.listeners
         self.lock = Lock()
         self.keep_running = True
         self.connected_sockets = {}
 
-    def set_agent(self, agent):
-        self.agent = agent
-        self.id_gen = IDGenerator(start_id=self.agent.start_id)
+        # FIXME: Infer this from channels attribute instead.
+        self.id_gen = IDGenerator(start_id=self.connection_start_id)
 
     def listen(self):
         for _ in range(self.listeners):
@@ -80,7 +68,7 @@ class NetworkListener:
                 with self.lock:
                     conn_id = self.id_gen.get_new()
                     self.connected_sockets[conn_id] = (sock, addr)
-                self.agent.handle_connection(conn_id, addr)
+                self.handle_connection(conn_id, addr)
             except socket.timeout:
                 pass
         print("INFO: Stopping listener.")
@@ -100,18 +88,8 @@ class NetworkListener:
                 pass
 
     def handle_connection(self, connection_id, addr):
-        """A connection has been made."""
-        pass
-
-
-class AIListener(NetworkListener):
-    def handle_connection(self, ai_id, addr):
-        self.agent.message_director.ai_connected(ai_id)
-
-
-class ClientListener(NetworkListener):
-    def handle_connection(self, client_id, addr):
-        self.agent.message_director.client_connected(client_id)
+        """A connection has been made. This should be handled by the agent."""
+        raise NotImplementedError
 
 
 class NetworkConnector:

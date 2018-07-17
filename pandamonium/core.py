@@ -1,4 +1,5 @@
 from pandamonium.config import config
+from pandamonium.constants import channels, msgtypes
 
 
 class StateServer:
@@ -28,37 +29,39 @@ class StateServer:
 
 
 class BaseAgent:
-    def __init__(self, socket=None):
-        if socket is None:
-            socket = self.default_socket()
-        self.socket = socket
-        self.socket.set_agent(self)
-
     def set_message_director(self, message_director):
         self.message_director = message_director
 
-    def listen(self):
-        self.socket.listen()
-
     def handle_connection(self, conn_id, addr):
         """"Agent's socket has received a new connection. Broadcast info."""
-        pass
+        raise NotImplementedError
 
 
 class ClientAgent(BaseAgent):
-    default_socket = None  # FIXME
-    start_id = 100000
+    connection_start_id = 100000
 
-    def handle_connection(self, conn_id, addr):
-        pass  # TODO: Broadcast CLIENT_CONNECTED
+    def handle_connection(self, client_id, addr):
+        self.message_director.create_message(
+            client_id,
+            channels.ALL_AIS,
+            msgtypes.CLIENT_CONNECTED,
+        )
 
 
 class AIAgent(BaseAgent):
-    default_socket = None  # FIXME
-    start_id = 0
+    connection_start_id = 1000
 
-    def handle_connection(self, conn_id, addr):
-        pass  # TODO: Broadcast AI_CONNECTED
+    def handle_connection(self, ai_id, addr):
+        self.message_director.create_message(
+            ai_id,
+            ai_id,
+            msgtypes.AI_CHANNEL_ASSIGNED,
+        )
+        self.message_director.create_message(
+            ai_id,
+            channels.ALL_AIS,
+            msgtypes.AI_CONNECTED,
+        )
 
 
 # TODO
@@ -68,6 +71,8 @@ class AIAgent(BaseAgent):
 #   be a whole sub-protocol about this setup phase?
 class MessageDirector:
     def __init__(self, client_agent=None, ai_agent=None, wait_for_ai=True):
+        self.channels = {}
+
         if client_agent is None:
             client_agent = ClientAgent()
         self.client_agent = client_agent
@@ -84,10 +89,7 @@ class MessageDirector:
         self.ai_agent.listen()
         self.client_agent.listen()
 
-    def ai_connected(self, ai_id):
-        pass
-
-    def client_connected(self, client_id):
+    def create_message(self, from_channel, to_channel, message_type, *args):
         pass
 
 
