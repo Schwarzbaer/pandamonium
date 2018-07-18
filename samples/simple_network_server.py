@@ -3,28 +3,16 @@
 import sys
 
 from pandamonium.core import ClientAgent, AIAgent, MessageDirector
-from pandamonium.sockets import NetworkListener
+from pandamonium.sockets import AIListener, ClientListener
 
 
-class DemoAIAgent(AIAgent, NetworkListener):
-    interface = '127.0.0.1'
-    port = 50550
-    listeners = 1
-    timeout = 5.0
-    threaded_connections = False
-
+class DemoAIAgent(AIAgent, AIListener):
     def handle_connection(self, conn_id, addr):
         print("AI {} connected from {}".format(conn_id, addr))
         super().handle_connection(conn_id, addr)
 
 
-class DemoClientAgent(ClientAgent, NetworkListener):
-    interface = '0.0.0.0'
-    port = 50551
-    listeners = 1
-    timeout = 5.0
-    threaded_connections = False
-
+class DemoClientAgent(ClientAgent, ClientListener):
     def handle_connection(self, conn_id, addr):
         print("Client {} connected from {}".format(conn_id, addr))
         super().handle_connection(conn_id, addr)

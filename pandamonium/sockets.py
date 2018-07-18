@@ -47,7 +47,8 @@ class NetworkListener:
         sock, addr = connection
         if self.threaded_connections:
             thread = Thread(target=self.threaded_read, args=(connection_id, ))
-            read_lock = Lock()
+            read_lock = Lock() # Since only one thread reads the socket, maybe
+                               # only have the write lock?
             write_lock = Lock()
         else:
             thread = None
@@ -99,6 +100,22 @@ class NetworkListener:
     def handle_connection(self, connection_id, addr):
         """A connection has been made. This is implemented by the agent."""
         raise NotImplementedError
+
+
+class AIListener(NetworkListener):
+    interface = '127.0.0.1'
+    port = 50550
+    listeners = 1
+    timeout = 5.0
+    threaded_connections = False
+
+
+class ClientListener(NetworkListener):
+    interface = '0.0.0.0'
+    port = 50551
+    listeners = 1
+    timeout = 5.0
+    threaded_connections = False
 
 
 class NetworkConnector:
