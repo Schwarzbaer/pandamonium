@@ -2,7 +2,7 @@ Doable immediately
 ------------------
 
 [ ] Agents should subscribe new connections to their channels.
-[ ] `IDGenerator` should adhere to channel ranges defined in `constants.py`
+[ ] `IDGenerator` should adhere to channel ranges, and reuse released IDs.
 [ ] `MessageDirector`: Implement ai_connected, client_connected
     [ ] `MessageDirector`, agents, repos: Implement disconnect
         [ ] test: Let AI repo disconnect client repo on connect.

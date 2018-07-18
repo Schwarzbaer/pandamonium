@@ -38,7 +38,7 @@ class BaseAgent:
 
 
 class ClientAgent(BaseAgent):
-    connection_start_id = 100000
+    connection_ids = channels.CLIENTS
 
     def handle_connection(self, client_id, addr):
         self.message_director.create_message(
@@ -49,7 +49,7 @@ class ClientAgent(BaseAgent):
 
 
 class AIAgent(BaseAgent):
-    connection_start_id = 1000
+    connection_ids = channels.AIS
 
     def handle_connection(self, ai_id, addr):
         self.message_director.create_message(

@@ -8,7 +8,7 @@ from pandamonium.util import IDGenerator
 class NetworkListener:
     def __init__(self):
         # FIXME: Infer this from channels attribute instead.
-        self.id_gen = IDGenerator(start_id=self.connection_start_id)
+        self.id_gen = IDGenerator(id_range=self.connection_ids)
 
         self.socket = socket.socket()
         self.socket.bind((self.interface, self.port))
