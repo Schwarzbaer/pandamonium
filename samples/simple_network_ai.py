@@ -1,13 +1,10 @@
 import sys
 
 from pandamonium.repository import AIRepository
-from pandamonium.sockets import NetworkConnector
+from pandamonium.sockets import AIConnector
 
 
-ai_socket = NetworkConnector(host='127.0.0.1', port=50550)
-
-
-class DemoAIRepository(AIRepository):
+class DemoAIRepository(AIRepository, AIConnector):
     def connected(self):
         print("AI repo has connected.")
 
@@ -18,5 +15,5 @@ class DemoAIRepository(AIRepository):
         print("Client {} has connected".format(client_id))
 
 
-ai_repository = DemoAIRepository(socket=ai_socket)
+ai_repository = DemoAIRepository()
 ai_repository.connect()

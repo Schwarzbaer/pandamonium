@@ -119,10 +119,21 @@ class ClientListener(NetworkListener):
 
 
 class NetworkConnector:
-    def __init__(self, host='127.0.0.1', port=50550):
+    def __init__(self):
         self.socket = socket.socket()
-        self.host = host
-        self.port = port
 
     def connect(self):
         self.socket.connect((self.host, self.port))
+        # TODO: Start reader thread
+
+
+class AIConnector(NetworkConnector):
+    host ='127.0.0.1'
+    port = 50550
+
+
+class ClientConnector(NetworkConnector):
+    def __init__(self, host='127.0.0.1', port=50551):
+        self.host = host
+        self.port = port
+        super().__init__()
