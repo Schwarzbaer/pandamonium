@@ -15,6 +15,13 @@ Doable immediately
     [ ] Panda3D dcparser
 [ ] Review design document and distill it into to-dos
 [ ] Rewrite InternalSocket from scratch
+    [X] Mimic Listener API for compatibility
+    [X] Pass listener/Agent instance to connector/repo constructor
+    [ ] ...? (Just map method calls?)
+    [ ] Profit!
+[ ] Handle OSError on socket.bind() if socket is in use already
+    [ ] Clean up socket in shutdown
+    [ ] Handle "Can't connect" in connectors while you're at it
 
 
 Near-Future Plans

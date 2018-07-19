@@ -137,3 +137,33 @@ class ClientConnector(NetworkConnector):
         self.host = host
         self.port = port
         super().__init__()
+
+
+class InternalListener:
+    def __init__(self):
+        # FIXME: As in NetworkListener. Maybe move it into a BaseListener?
+        self.id_gen = IDGenerator(id_range=self.connection_ids)
+        self.listeners = {}
+
+    def listen(self):
+        pass  # Not necessary, as repos will just call setup_connection().
+
+    def setup_connection(self, listener):
+        connection_id = self.id_gen.get_new()
+        self.listeners[connection_id] = listener
+        self.handle_connection(connection_id, 'internal')
+
+    def shutdown(self):
+        pass
+
+    def handle_connection(self, connection_id, addr):
+        """A connection has been made. This is implemented by the agent."""
+        raise NotImplementedError
+
+
+class InternalConnector:
+    def __init__(self, listener):
+        self.listener = listener
+
+    def connect(self):
+        self.listener.setup_connection(self)

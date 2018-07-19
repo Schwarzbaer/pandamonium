@@ -90,7 +90,9 @@ class MessageDirector:
         self.client_agent.listen()
 
     def create_message(self, from_channel, to_channel, message_type, *args):
-        pass
+        print("DEBUG: {} ->{}: {}".format(
+            from_channel, to_channel, message_type,
+        ))
 
 
 def start_server():

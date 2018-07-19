@@ -2,10 +2,6 @@ import socket
 
 
 class BaseRepository:
-    def connect(self):
-        """Connect to the network server."""
-        self.socket.connect((self.host, self.port))
-
     def connected(self):
         """Message handler: Network has acknowledged our connection."""
         pass
