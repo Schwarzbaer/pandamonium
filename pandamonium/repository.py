@@ -12,6 +12,10 @@ class ClientRepository(BaseRepository):
         """Message handler: Network has disconnected the client."""
         pass
 
+    def handle_message(self, message_type, *args):
+        """Message received, needs to be handled."""
+        raise NotImplementedError
+
 
 class AIRepository(BaseRepository):
     def client_connected(self, client_id):
@@ -21,3 +25,7 @@ class AIRepository(BaseRepository):
     def client_disconnected(self, client_id):
         """Message handler: A client has disconnected from the network."""
         pass
+
+    def handle_message(self, from_channel, to_channel, message_type, *args):
+        """Message received, needs to be handled."""
+        raise NotImplementedError

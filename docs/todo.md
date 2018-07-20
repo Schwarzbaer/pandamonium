@@ -1,12 +1,13 @@
 Doable immediately
 ------------------
 
-[ ] Agents should subscribe new connections to their channels.
+[ ] Agents shouldn't use ALL_* as their channels, and the MessageDirector should
+    route messages to ALL_* accordingly.
 [ ] `IDGenerator` should adhere to channel ranges, and reuse released IDs.
-[ ] `MessageDirector`: Implement ai_connected, client_connected
-    [ ] `MessageDirector`, agents, repos: Implement disconnect
-        [ ] test: Let AI repo disconnect client repo on connect.
-[ ] `simple_sample_server`: Handle `C-c` with graceful shutdown.
+[ ] All components: shutdown()
+[ ] `MessageDirector`: Compose better default agents
+[ ] `MessageDirector`, agents, repos: Implement disconnect
+    [ ] test: Let AI repo disconnect client repo on connect.
 [ ] Message packing / unpacking
     [ ] JSON
     [ ] binary (protobuf?)

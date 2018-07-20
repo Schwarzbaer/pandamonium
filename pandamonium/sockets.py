@@ -3,6 +3,7 @@ from queue import Queue, Empty
 from threading import Thread, Lock
 
 from pandamonium.util import IDGenerator
+from pandamonium.constants import msgtypes
 
 
 class NetworkListener:
@@ -57,6 +58,7 @@ class NetworkListener:
         full_connection = (sock, addr, thread, read_lock, write_lock)
         with self.connections_lock:
             self.connections[connection_id] = full_connection
+        self.message_director.subscribe_to_channel(connection_id, self)
         self.handle_connection(connection_id, addr)
         if self.threaded_connections:
             thread.start()
@@ -93,12 +95,17 @@ class NetworkListener:
         self.keep_running = False
         for t in self.listening_sockets:
             t.join()
-        # TODO: Close open connections.
+        # TODO: Close open connections, after unsubscribing them from MD
         # TODO: if self.threaded_connections: reader_threads.join()
         self.socket.shutdown(socket.SHUT_RDWR)
 
     def handle_connection(self, connection_id, addr):
         """A connection has been made. This is implemented by the agent."""
+        raise NotImplementedError
+
+    def handle_connection_message(self, from_channel, to_channel, message_type,
+                                  *args):
+        """A message for a connection has occurred."""
         raise NotImplementedError
 
 
@@ -151,6 +158,7 @@ class InternalListener:
     def setup_connection(self, listener):
         connection_id = self.id_gen.get_new()
         self.listeners[connection_id] = listener
+        self.message_director.subscribe_to_channel(connection_id, self)
         self.handle_connection(connection_id, 'internal')
 
     def shutdown(self):
@@ -159,6 +167,32 @@ class InternalListener:
     def handle_connection(self, connection_id, addr):
         """A connection has been made. This is implemented by the agent."""
         raise NotImplementedError
+
+    def handle_connection_message(self, from_channel, to_channel, message_type,
+                                  *args):
+        """A message for a connection has occurred."""
+        raise NotImplementedError
+
+
+class InternalAIListener(InternalListener):
+    def handle_connection_message(self, from_channel, to_channel, message_type,
+                                  *args):
+        """A message for a connection has occurred."""
+        self.listeners[to_channel].handle_message(
+            from_channel,
+            to_channel,
+            message_type,
+            *args,
+        )
+
+
+class InternalClientListener(InternalListener):
+    def handle_connection_message(self, from_channel, to_channel, message_type,
+                                  *args):
+        self.listeners[to_channel].handle_message(
+            message_type,
+            *args,
+        )
 
 
 class InternalConnector:

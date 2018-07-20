@@ -1,6 +1,5 @@
-# TODO: Handle C-c with graceful shutdown.
-
 import sys
+import signal
 
 from pandamonium.core import ClientAgent, AIAgent, MessageDirector
 from pandamonium.sockets import AIListener, ClientListener
@@ -22,4 +21,10 @@ client_agent = DemoClientAgent()
 ai_agent = DemoAIAgent()
 message_director = MessageDirector(client_agent=client_agent, ai_agent=ai_agent)
 
+
+def signal_sigint(sig, frame):
+    message_director.shutdown()
+
+
+signal.signal(signal.SIGINT, signal_sigint)
 message_director.startup()
