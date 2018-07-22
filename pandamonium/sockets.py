@@ -6,7 +6,41 @@ from pandamonium.util import IDGenerator
 from pandamonium.constants import msgtypes
 
 
-class NetworkListener:
+class BaseListener:
+    def listen(self):
+        """Start to listen for new connections."""
+        raise NotImplementedError
+
+    def shutdown(self):
+        """Shut down the listener."""
+        raise NotImplementedError
+
+    def handle_broadcast_message(self, from_channel, to_channel, message_type,
+                                  *args):
+        """A message for all connections has occurred."""
+        raise NotImplementedError
+
+    def handle_connection_message(self, from_channel, to_channel, message_type,
+                                  *args):
+        """A message for a connection has occurred."""
+        raise NotImplementedError
+
+
+class BaseConnector:
+    def connect(self):
+        """Make connection to listener."""
+        raise NotImplementedError
+
+    def send_message(self, message_type, *args):
+        """Send a message to the listener."""
+        raise NotImplementedError
+
+
+# Network classes. These currently do only TCP, but should be extendable to
+# hybrid TCP / UDP.
+
+
+class NetworkListener(BaseListener):
     def __init__(self):
         # FIXME: Infer this from channels attribute instead.
         self.id_gen = IDGenerator(id_range=self.connection_ids)
@@ -45,6 +79,7 @@ class NetworkListener:
 
     def setup_connection(self, connection):
         connection_id = self.id_gen.get_new()
+        # TODO: Check addr against a blacklist
         sock, addr = connection
         if self.threaded_connections:
             thread = Thread(target=self.threaded_read, args=(connection_id, ))
@@ -103,11 +138,6 @@ class NetworkListener:
         """A connection has been made. This is implemented by the agent."""
         raise NotImplementedError
 
-    def handle_connection_message(self, from_channel, to_channel, message_type,
-                                  *args):
-        """A message for a connection has occurred."""
-        raise NotImplementedError
-
 
 class AIListener(NetworkListener):
     interface = '127.0.0.1'
@@ -125,7 +155,7 @@ class ClientListener(NetworkListener):
     threaded_connections = False
 
 
-class NetworkConnector:
+class NetworkConnector(BaseConnector):
     def __init__(self):
         self.socket = socket.socket()
 
@@ -146,6 +176,15 @@ class ClientConnector(NetworkConnector):
         super().__init__()
 
 
+# "Internal" "network" means that everything is running in the same process, and
+# anything networky is done simply by function calls. This should be highly
+# efficient, since there's no packing / unpacking of messages, but also means
+# that there's no vertical scaling (Thanks, GLI!). Also, there's no concept of
+# thread safety implemented on this level, since when a "message sending" call
+# of yours returns, it has already been completely processed on the "other
+# side".
+
+
 class InternalListener:
     def __init__(self):
         # FIXME: As in NetworkListener. Maybe move it into a BaseListener?
@@ -164,21 +203,30 @@ class InternalListener:
     def shutdown(self):
         pass
 
-    def handle_connection(self, connection_id, addr):
-        """A connection has been made. This is implemented by the agent."""
-        raise NotImplementedError
-
-    def handle_connection_message(self, from_channel, to_channel, message_type,
-                                  *args):
-        """A message for a connection has occurred."""
-        raise NotImplementedError
-
 
 class InternalAIListener(InternalListener):
+    def handle_broadcast_message(self, from_channel, to_channel, message_type,
+                                 *args):
+        for listener in self.listeners:
+            self.listeners[listener].handle_message(
+                from_channel,
+                to_channel,
+                message_type,
+                *args,
+            )
+
     def handle_connection_message(self, from_channel, to_channel, message_type,
                                   *args):
-        """A message for a connection has occurred."""
         self.listeners[to_channel].handle_message(
+            from_channel,
+            to_channel,
+            message_type,
+            *args,
+        )
+
+    def handle_incoming_message(self, from_channel, to_channel, message_type,
+                                  *args):
+        self.message_director.create_message(
             from_channel,
             to_channel,
             message_type,
@@ -187,17 +235,36 @@ class InternalAIListener(InternalListener):
 
 
 class InternalClientListener(InternalListener):
+    def handle_broadcast_message(self, from_channel, to_channel, message_type,
+                                 *args):
+        for listener in self.listeners:
+            self.listeners[listener].handle_message(
+                message_type,
+                *args,
+            )
+
     def handle_connection_message(self, from_channel, to_channel, message_type,
                                   *args):
-        self.listeners[to_channel].handle_message(
-            message_type,
-            *args,
-        )
+        if message_type == msgtypes.DISCONNECT_CLIENT:
+            reason = args[0]
+            self.listeners[to_channel].handle_message(
+                msgtypes.DISCONNECTED,
+                reason,
+            )
+            # TODO: Disconnect
+        else:
+            self.listeners[to_channel].handle_message(
+                message_type,
+                *args,
+            )
 
 
-class InternalConnector:
+class InternalConnector(BaseConnector):
     def __init__(self, listener):
         self.listener = listener
 
     def connect(self):
         self.listener.setup_connection(self)
+
+    def send_message(self, message_type, *args):
+        self.listener.handle_incoming_message(message_type, *args)

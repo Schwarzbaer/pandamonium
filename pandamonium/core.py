@@ -36,7 +36,7 @@ class StateServer:
 class BaseAgent:
     def set_message_director(self, message_director):
         self.message_director = message_director
-        self.message_director.subscribe_to_channel(self.own_channel, self)
+        self.message_director.subscribe_to_channel(self.all_connections, self)
 
     def handle_connection(self, conn_id, addr):
         """Agent's socket has received a new connection. Broadcast info."""
@@ -44,14 +44,13 @@ class BaseAgent:
 
     def handle_message(self, from_channel, to_channel, message_type, *args):
         """Message for the agent, or one of its connections."""
-        if to_channel == self.own_channel:
+        if to_channel == self.all_connections:
             # message to the agent
-            self.handle_agent_message(
+            self.handle_broadcast_message(
                 from_channel,
                 to_channel,
                 message_type,
-                *args,
-            )
+                *args,            )
         else:
             # message to a connection
             self.handle_connection_message(
@@ -61,56 +60,42 @@ class BaseAgent:
                 *args,
             )
 
-    def handle_agent_message(self, from_channel, to_channel, message_type,
-                             *args):
-        raise NotImplementedError
-
 
 class ClientAgent(BaseAgent):
-    own_channel = channels.ALL_CLIENTS
+    all_connections = channels.ALL_CLIENTS
     connection_ids = channels.CLIENTS
 
     def handle_connection(self, client_id, addr):
         self.message_director.create_message(
             client_id,
+            client_id,
+            msgtypes.CONNECTED,
+        )
+        self.message_director.create_message(
+            client_id,
             channels.ALL_AIS,
             msgtypes.CLIENT_CONNECTED,
+            client_id,
         )
-
-    def handle_agent_message(self, from_channel, to_channel, message_type,
-                             *args):
-        # FIXME: Implement
-        print("DEBUG: ClientAgent received {} -> {} ()".format(
-            from_channel,
-            to_channel,
-            message_type,
-        ))
 
 
 class AIAgent(BaseAgent):
-    own_channel = channels.ALL_AIS
+    all_connections = channels.ALL_AIS
     connection_ids = channels.AIS
 
     def handle_connection(self, ai_id, addr):
         self.message_director.create_message(
-            self.own_channel,
+            self.all_connections,
             ai_id,
             msgtypes.AI_CHANNEL_ASSIGNED,
+            ai_id,
         )
         self.message_director.create_message(
             ai_id,
             channels.ALL_AIS,
             msgtypes.AI_CONNECTED,
+            ai_id,
         )
-
-    def handle_agent_message(self, from_channel, to_channel, message_type,
-                             *args):
-        # FIXME: Implement!
-        print("DEBUG: AIAgent received {} -> {} ()".format(
-            from_channel,
-            to_channel,
-            message_type,
-        ))
 
 
 # TODO
