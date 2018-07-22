@@ -35,6 +35,10 @@ class BaseConnector:
         """Send a message to the listener."""
         raise NotImplementedError
 
+    def disconnect(self):
+        """Explicitly disconnect."""
+        raise NotImplementedError
+
 
 # Network classes. These currently do only TCP, but should be extendable to
 # hybrid TCP / UDP.
@@ -185,7 +189,7 @@ class ClientConnector(NetworkConnector):
 # side".
 
 
-class InternalListener:
+class InternalListener(BaseListener):
     def __init__(self):
         # FIXME: As in NetworkListener. Maybe move it into a BaseListener?
         self.id_gen = IDGenerator(id_range=self.connection_ids)
@@ -199,6 +203,12 @@ class InternalListener:
         self.listeners[connection_id] = listener
         self.message_director.subscribe_to_channel(connection_id, self)
         self.handle_connection(connection_id, 'internal')
+        return connection_id
+
+    def remove_connection(self, connection_id):
+        self.message_director.unsubscribe_from_channel(connection_id, self)
+        listener = self.listeners[connection_id]
+        del self.listeners[connection_id]
 
     def shutdown(self):
         pass
@@ -243,6 +253,8 @@ class InternalClientListener(InternalListener):
                 *args,
             )
 
+    # FIXME: Can special case mapping like for DISCONNECT_CLIENT be moved
+    # upwards / sideways in the class hierarchy?
     def handle_connection_message(self, from_channel, to_channel, message_type,
                                   *args):
         if message_type == msgtypes.DISCONNECT_CLIENT:
@@ -251,9 +263,27 @@ class InternalClientListener(InternalListener):
                 msgtypes.DISCONNECTED,
                 reason,
             )
-            # TODO: Disconnect
+            self.remove_connection(from_channel)
+            # TODO: Broadcast client disconnection
         else:
             self.listeners[to_channel].handle_message(
+                message_type,
+                *args,
+            )
+
+    def handle_incoming_message(self, from_channel, to_channel, message_type,
+                                *args):
+        if message_type == msgtypes.DISCONNECT:
+            self.handle_connection_message(
+                from_channel,
+                from_channel,
+                msgtypes.DISCONNECT_CLIENT,
+                "Client-requested disconnect.",
+            )
+        else:
+            self.message_director.create_message(
+                from_channel,
+                to_channel,
                 message_type,
                 *args,
             )
@@ -264,7 +294,21 @@ class InternalConnector(BaseConnector):
         self.listener = listener
 
     def connect(self):
-        self.listener.setup_connection(self)
+        # Not having a complicated setup has the consequence that the connector
+        # has to know and add the client ID.
+        # Word of warning: The repo associated with this connection will receive
+        # and handle the CONNECTED message before this call finishes, meaning
+        # that you shouldn't react to it in an override of connected() that'll
+        # require knowing the connection ID.
+        self.connection_id = self.listener.setup_connection(self)
 
     def send_message(self, message_type, *args):
-        self.listener.handle_incoming_message(message_type, *args)
+        self.listener.handle_incoming_message(
+            self.connection_id,
+            None,
+            message_type,
+            *args,
+        )
+
+    def disconnect(self):
+        self.send_message(msgtypes.DISCONNECT)

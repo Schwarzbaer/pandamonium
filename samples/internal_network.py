@@ -115,7 +115,7 @@ class DemoAIRepository(AIRepository, InternalConnector):
             self.channel,
             client_id,
         ))
-        self.disconnect_client(client_id, "For demonstration purposes.")
+        # self.disconnect_client(client_id, "For demonstration purposes.")
 
 
 ai_repository = DemoAIRepository(ai_agent)
@@ -145,6 +145,7 @@ class DemoClientRepository(ClientRepository, InternalConnector):
 
 client_repository = DemoClientRepository(client_agent)
 client_repository.connect()
+client_repository.disconnect()
 
 
 # class Demo(ShowBase):

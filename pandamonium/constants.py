@@ -36,3 +36,5 @@ class msgtypes:
     CONNECTED = MsgType(1000, "CONNECTED")
     # -> client repo
     DISCONNECTED = MsgType(1001, "DISCONNECTED")
+    # client repo -> client agent
+    DISCONNECT = MsgType(1002, "DISCONNECT")
