@@ -9,9 +9,30 @@ class channels:
     CLIENTS = (100000, 999999)
 
 
+class MsgType:
+    def __init__(self, num_id, str_repr):
+        self.num_id = num_id
+        self.str_repr = str_repr
+
+    def __eq__(self, other):
+        return self.num_id == other.num_id
+
+    def __repr__(self):
+        return self.str_repr
+
+
 class msgtypes:
-    AI_CONNECTED = 0  # Announce to all AIs that an AI has connected
-    AI_CHANNEL_ASSIGNED = 1  # Tell an AI its own channel
-    CLIENT_CONNECTED = 10  # Announce to all AIs that a client has connected
-    CLIENT_DISCONNECTED = 11  # Annouce that a client has disconnected
-    DISCONNECT_CLIENT = 12  # Force a client's disconnection
+    # Announce to all AIs that an AI has connected
+    AI_CONNECTED = MsgType(0, "AI_CONNECTED")
+    # Tell an AI its own channel
+    AI_CHANNEL_ASSIGNED = MsgType(1, "AI_CHANNEL_ASSIGNED")
+    # Announce to all AIs that a client has connected
+    CLIENT_CONNECTED = MsgType(10, "CLIENT_CONNECTED")
+    # Annouce that a client has disconnected
+    CLIENT_DISCONNECTED = MsgType(11, "CLIENT_DISCONNECTED")
+    # Force a client's disconnection
+    DISCONNECT_CLIENT = MsgType(12, "DISCONNECT_CLIENT")
+    # -> client repo
+    CONNECTED = MsgType(1000, "CONNECTED")
+    # -> client repo
+    DISCONNECTED = MsgType(1001, "DISCONNECTED")
