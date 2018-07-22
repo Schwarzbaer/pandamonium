@@ -23,6 +23,7 @@ Doable immediately
 [ ] Handle OSError on socket.bind() if socket is in use already
     [ ] Clean up socket in shutdown
     [ ] Handle "Can't connect" in connectors while you're at it
+[ ] Replace `print`s with proper logging
 
 
 Near-Future Plans
@@ -30,6 +31,7 @@ Near-Future Plans
 
 [ ] Python package
 [ ] Ponder persistance and reloading
+[ ] Hybrid TCP / UDP networking
 
 
 Far-Future Plans
