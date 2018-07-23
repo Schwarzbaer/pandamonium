@@ -76,12 +76,12 @@ class NetworkListener(BaseListener):
                 connection = self.socket.accept()
                 sock, addr = connection
                 print("INFO: Connection from {}".format(addr))
-                self.setup_connection(connection)
+                self._setup_connection(connection)
             except socket.timeout:
                 pass
         print("INFO: Stopping listener.")
 
-    def setup_connection(self, connection):
+    def _setup_connection(self, connection):
         connection_id = self.id_gen.get_new()
         # TODO: Check addr against a blacklist
         sock, addr = connection
@@ -196,16 +196,16 @@ class InternalListener(BaseListener):
         self.listeners = {}
 
     def listen(self):
-        pass  # Not necessary, as repos will just call setup_connection().
+        pass  # Not necessary, as repos will just call _setup_connection().
 
-    def setup_connection(self, listener):
+    def _setup_connection(self, listener):
         connection_id = self.id_gen.get_new()
         self.listeners[connection_id] = listener
         self.message_director.subscribe_to_channel(connection_id, self)
         self.handle_connection(connection_id, 'internal')
         return connection_id
 
-    def remove_connection(self, connection_id):
+    def _remove_connection(self, connection_id):
         self.message_director.unsubscribe_from_channel(connection_id, self)
         listener = self.listeners[connection_id]
         del self.listeners[connection_id]
@@ -263,8 +263,13 @@ class InternalClientListener(InternalListener):
                 msgtypes.DISCONNECTED,
                 reason,
             )
-            self.remove_connection(from_channel)
-            # TODO: Broadcast client disconnection
+            self._remove_connection(from_channel)
+            self.message_director.create_message(
+                None, # FIXME: ClientAgent ID
+                channels.ALL_AIS,
+                msgtypes.CLIENT_DISCONNECTED,
+                to_channel,
+            )
         else:
             self.listeners[to_channel].handle_message(
                 message_type,
@@ -300,7 +305,7 @@ class InternalConnector(BaseConnector):
         # and handle the CONNECTED message before this call finishes, meaning
         # that you shouldn't react to it in an override of connected() that'll
         # require knowing the connection ID.
-        self.connection_id = self.listener.setup_connection(self)
+        self.connection_id = self.listener._setup_connection(self)
 
     def send_message(self, message_type, *args):
         self.listener.handle_incoming_message(
