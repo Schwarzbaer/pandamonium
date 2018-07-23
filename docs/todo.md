@@ -24,6 +24,7 @@ Doable immediately
     [ ] Clean up socket in shutdown
     [ ] Handle "Can't connect" in connectors while you're at it
 [ ] Replace `print`s with proper logging
+    [ ] Add trace level logging
 [ ] Add full message signatures in message_types.md
 
 

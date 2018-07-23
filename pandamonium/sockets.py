@@ -3,7 +3,7 @@ from queue import Queue, Empty
 from threading import Thread, Lock
 
 from pandamonium.util import IDGenerator
-from pandamonium.constants import msgtypes
+from pandamonium.constants import channels, msgtypes
 
 
 class BaseListener:
@@ -258,18 +258,9 @@ class InternalClientListener(InternalListener):
     def handle_connection_message(self, from_channel, to_channel, message_type,
                                   *args):
         if message_type == msgtypes.DISCONNECT_CLIENT:
+            client_id = to_channel
             reason = args[0]
-            self.listeners[to_channel].handle_message(
-                msgtypes.DISCONNECTED,
-                reason,
-            )
-            self._remove_connection(from_channel)
-            self.message_director.create_message(
-                None, # FIXME: ClientAgent ID
-                channels.ALL_AIS,
-                msgtypes.CLIENT_DISCONNECTED,
-                to_channel,
-            )
+            self.handle_disconnect_client(client_id, reason)
         else:
             self.listeners[to_channel].handle_message(
                 message_type,
@@ -279,12 +270,8 @@ class InternalClientListener(InternalListener):
     def handle_incoming_message(self, from_channel, to_channel, message_type,
                                 *args):
         if message_type == msgtypes.DISCONNECT:
-            self.handle_connection_message(
-                from_channel,
-                from_channel,
-                msgtypes.DISCONNECT_CLIENT,
-                "Client-requested disconnect.",
-            )
+            client_id = from_channel
+            self.handle_disconnect(client_id)
         else:
             self.message_director.create_message(
                 from_channel,
@@ -292,6 +279,27 @@ class InternalClientListener(InternalListener):
                 message_type,
                 *args,
             )
+
+    def handle_disconnect(self, client_id):
+        self.handle_connection_message(
+            client_id,
+            client_id,
+            msgtypes.DISCONNECT_CLIENT,
+            "Client-requested disconnect.",
+        )
+
+    def handle_disconnect_client(self, client_id, reason):
+        self.listeners[client_id].handle_message(
+            msgtypes.DISCONNECTED,
+            reason,
+        )
+        self._remove_connection(client_id)
+        self.message_director.create_message(
+            client_id,
+            channels.ALL_AIS,
+            msgtypes.CLIENT_DISCONNECTED,
+            client_id,
+        )
 
 
 class InternalConnector(BaseConnector):
