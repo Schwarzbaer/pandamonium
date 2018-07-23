@@ -20,7 +20,12 @@ class StateServer(BaseComponent):
     def __init__(self):
         self.objects = {}
         self.interests = {}
-        self.interests_lock = Lock()
+        # TODO: For the moment, we'll use a single lock to protect the whole of
+        # the state; dobject existence, presence in zones, and interest. This is
+        # a topic ripe for optimization, if you can do it without creating
+        # deadlocks. Maybe do optimistic concurrency? Have a nifty planner
+        # that'll schedule event processing into isolated parallelity?
+        self.state_lock = Lock()
 
     def shutdown(self):
         pass
@@ -45,7 +50,7 @@ class StateServer(BaseComponent):
             recipient,
             zone,
         ))
-        with self.interests_lock:
+        with self.state_lock:
             recipients = self.interests.get(zone, set())
             recipients.add(recipient)
             self.interests[zone] = recipients
@@ -55,11 +60,12 @@ class StateServer(BaseComponent):
             recipient,
             zone,
         ))
-        with self.interests_lock:
+        with self.state_lock:
             recipients = self.interests[zone]
             recipients.remove(recipient)
 
 
+# FIXME: Add _handle_incoming_message()?
 class BaseAgent(BaseComponent):
     def handle_connection(self, conn_id, addr):
         """Agent's socket has received a new connection. Broadcast info."""
