@@ -1,6 +1,11 @@
 Doable immediately
 ------------------
 
+[ ] Set interest
+[ ] Repositories creating dobjects
+    [ ] JSON DC declarations
+        [ ] dobject creation / destruction
+    [ ] Panda3D dcparser
 [ ] Agents shouldn't use ALL_* as their channels, and the MessageDirector should
     route messages to ALL_* accordingly.
 [ ] `IDGenerator` should adhere to channel ranges, and reuse released IDs.
@@ -11,9 +16,6 @@ Doable immediately
 [ ] Message packing / unpacking
     [ ] JSON
     [ ] binary (protobuf?)
-[ ] Repositories creating dobjects
-    [ ] JSON DC declarations
-    [ ] Panda3D dcparser
 [ ] Review design document and distill it into to-dos
 [ ] Rewrite InternalSocket from scratch
     [X] Mimic Listener API for compatibility

@@ -141,7 +141,8 @@ class DemoClientRepository(ClientRepository, InternalConnector):
 
 client_repository = DemoClientRepository(client_agent)
 client_repository.connect()
-client_repository.disconnect()
+## client_repository.disconnect()
+print("-----------------------------------------------------------------------")
 
 
 # class Demo(ShowBase):
