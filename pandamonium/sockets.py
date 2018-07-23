@@ -236,6 +236,8 @@ class InternalAIListener(InternalListener):
 
     def handle_incoming_message(self, from_channel, to_channel, message_type,
                                   *args):
+        if from_channel is None:
+            from_channel = self.channel
         self.message_director.create_message(
             from_channel,
             to_channel,
@@ -316,12 +318,27 @@ class InternalConnector(BaseConnector):
         self.connection_id = self.listener._setup_connection(self)
 
     def send_message(self, message_type, *args):
+        raise NotImplementedError
+
+    def disconnect(self):
+        self.send_message(msgtypes.DISCONNECT)
+
+
+class InternalAIConnector(InternalConnector):
+    def send_message(self, from_channel, to_channel, message_type, *args):
         self.listener.handle_incoming_message(
-            self.connection_id,
-            None,
+            from_channel,
+            to_channel,
             message_type,
             *args,
         )
 
-    def disconnect(self):
-        self.send_message(msgtypes.DISCONNECT)
+
+class InternalClientConnector(InternalConnector):
+    def send_message(self, message_type, *args):
+        self.listener.handle_incoming_message(
+            self.connection_id,
+            self.connection_id,
+            message_type,
+            *args,
+        )

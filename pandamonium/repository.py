@@ -1,6 +1,6 @@
 import socket
 
-from pandamonium.constants import msgtypes
+from pandamonium.constants import channels, msgtypes
 
 
 class BaseRepository:
@@ -77,4 +77,24 @@ class AIRepository(BaseRepository):
             client_id,
             msgtypes.DISCONNECT_CLIENT,
             reason,
+        )
+
+    def set_interest(self, recipient, zone):
+        """Set interest of recipient in channel."""
+        self.send_message(
+            self.channel,
+            channels.ALL_STATE_SERVERS,  # FIXME: Just the specific?
+            msgtypes.SET_INTEREST,
+            recipient,
+            zone,
+        )
+
+    def unset_interest(self, recipient, zone):
+        """Set interest of recipient in channel."""
+        self.send_message(
+            self.channel,
+            channels.ALL_STATE_SERVERS,  # FIXME: Just the specific?
+            msgtypes.UNSET_INTEREST,
+            recipient,
+            zone,
         )

@@ -21,3 +21,11 @@ Client connection messages
   * CLIENT_DISCONNECTED(client_id)
 * AIRepository to ClientAgent
   * DISCONNECT_CLIENT(client_id, reason)
+
+
+Interest management
+-------------------
+
+* AIRepository to StateServer
+  * SET_INTEREST(recipient, zone): Set recipient interest in zone
+  * UNSET_INTEREST(recipient, zone): Revoke recipient interest in zone

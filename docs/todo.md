@@ -1,7 +1,8 @@
 Doable immediately
 ------------------
 
-[ ] Set interest
+[ ] Internal network demo
+    [ ] Create dobject in first contact zone when AIRepository connects
 [ ] Repositories creating dobjects
     [ ] JSON DC declarations
         [ ] dobject creation / destruction
@@ -27,7 +28,8 @@ Doable immediately
     [ ] Handle "Can't connect" in connectors while you're at it
 [ ] Replace `print`s with proper logging
     [ ] Add trace level logging
-[ ] Add full message signatures in message_types.md
+[ ] StateServer's interests dict and MessageDirector's channels dict are nearly
+    identical and may warrant creating a lockable dict-of-set class.
 
 
 Near-Future Plans

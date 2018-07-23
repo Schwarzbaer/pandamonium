@@ -7,7 +7,7 @@ Design
   * StateServers store and persist object state, and broadcast changes in state
     based on field keywords. Note that some state changes aren't even stored in
     the StateServer, making them pure message passings.
-    To facilitate routing, the StateServers also maintain zones, and object
+    To facilitate routing, the StateServers also maintain zones, and client
     interests in those zones.
   * ClientAgents accept connections from clients, validate incoming messages,
     and send updates back to them. The protocol that they use is different from,

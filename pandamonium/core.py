@@ -4,40 +4,64 @@ from pandamonium.config import config
 from pandamonium.constants import channels, msgtypes
 
 
-class StateServer:
-    def __init__(self, message_director):
-        self.message_director = message_director
-        self.zones = {}
-        self.objects = {}
-        self.interests = {}
-
-    def shutdown(self):
-        pass
-
-    def create_object(self):
-        pass
-
-    def destroy_object(self):
-        pass
-
-    def add_object_to_zone(self, dobject, zone):
-        pass
-
-    def remove_object_from_zone(self, dobject, zone):
-        pass
-
-    def set_interest(self, client, zone):
-        pass
-
-    def remove_interest(self, client, zone):
-        pass
-
-
-class BaseAgent:
+class BaseComponent:
     def set_message_director(self, message_director):
         self.message_director = message_director
         self.message_director.subscribe_to_channel(self.all_connections, self)
 
+    def handle_message(self, from_channel, to_channel, message_type, *args):
+
+        raise NotImplementedError
+
+
+class StateServer(BaseComponent):
+    all_connections = channels.ALL_STATE_SERVERS
+
+    def __init__(self, message_director):
+        self.message_director = message_director
+        self.objects = {}
+        self.interests = {}
+        self.interests_lock = Lock()
+
+    def shutdown(self):
+        pass
+
+    def handle_message(self, from_channel, to_channel, message_type, *args):
+        print("StateServer received: {} -> {} ({})".format(
+            from_channel, to_channel, message_type,
+        ))
+        if message_type == msgtypes.SET_INTEREST:
+            recipient = args[0]
+            zone = args[1]
+            self._handle_set_interest(recipient, zone)
+        elif message_type == msgtypes.UNSET_INTEREST:
+            recipient = args[0]
+            zone = args[1]
+            self._handle_unset_interest(recipient, zone)
+        else:
+            raise NotImplementedError
+
+    def _handle_set_interest(self, recipient, zone):
+        print("StateServer sets interest for {} in {}".format(
+            recipient,
+            zone,
+        ))
+        with self.interests_lock:
+            recipients = self.interests.get(zone, set())
+            recipients.add(recipient)
+            self.interests[zone] = recipients
+
+    def _handle_unset_interest(self, recipient, zone):
+        print("StateServer revokes interest for {} in {}".format(
+            recipient,
+            zone,
+        ))
+        with self.interests_lock:
+            recipients = self.interests[zone]
+            recipients.remove(recipient)
+
+
+class BaseAgent(BaseComponent):
     def handle_connection(self, conn_id, addr):
         """Agent's socket has received a new connection. Broadcast info."""
         raise NotImplementedError
@@ -108,6 +132,9 @@ class MessageDirector:
         self.channels = {}
         self.channels_lock = Lock()
 
+        self.state_server = StateServer(self)
+        self.state_server.set_message_director(self)
+
         if client_agent is None:
             client_agent = ClientAgent()
         self.client_agent = client_agent
@@ -117,8 +144,6 @@ class MessageDirector:
             ai_agent = AIAgent()
         self.ai_agent = ai_agent
         self.ai_agent.set_message_director(self)
-
-        self.state_server = StateServer(self)
 
     def startup(self):
         self.ai_agent.listen()

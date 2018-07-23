@@ -38,3 +38,7 @@ class msgtypes:
     DISCONNECTED = MsgType(1001, "DISCONNECTED")
     # client repo -> client agent
     DISCONNECT = MsgType(1002, "DISCONNECT")
+    # ai repo -> state server
+    SET_INTEREST = MsgType(2000, "SET_INTEREST")
+    # ai repo -> state server
+    UNSET_INTEREST = MsgType(2001, "UNSET_INTEREST")

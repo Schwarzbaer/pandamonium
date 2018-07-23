@@ -6,9 +6,13 @@ from pandamonium.core import ClientAgent, AIAgent, MessageDirector
 from pandamonium.sockets import (
     InternalAIListener,
     InternalClientListener,
-    InternalConnector,
+    InternalAIConnector,
+    InternalClientConnector,
 )
 from pandamonium.repository import ClientRepository, AIRepository
+
+
+FIRST_CONTACT_ZONE = 0
 
 
 class InternalClientAgent(ClientAgent, InternalClientListener):
@@ -90,7 +94,7 @@ ai_agent = InternalAIAgent()
 message_director = MessageDirector(client_agent=client_agent, ai_agent=ai_agent)
 
 
-class DemoAIRepository(AIRepository, InternalConnector):
+class DemoAIRepository(AIRepository, InternalAIConnector):
     def handle_message(self, from_channel, to_channel, message_type, *args):
         print("DemoAIRepository got message to handle: {} -> {} ({})".format(
             from_channel, to_channel, message_type,
@@ -114,6 +118,7 @@ class DemoAIRepository(AIRepository, InternalConnector):
             client_id,
         ))
         # self.disconnect_client(client_id, "For demonstration purposes.")
+        self.set_interest(client_id, FIRST_CONTACT_ZONE)
 
     def handle_client_disconnected(self, client_id):
         print("Client {} has disconnected".format(client_id))
@@ -123,7 +128,7 @@ ai_repository = DemoAIRepository(ai_agent)
 ai_repository.connect()
 
 
-class DemoClientRepository(ClientRepository, InternalConnector):
+class DemoClientRepository(ClientRepository, InternalClientConnector):
     def handle_message(self, message_type, *args):
         print("DemoClientRepository got message to handle: {}".format(
             message_type
