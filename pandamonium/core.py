@@ -31,9 +31,6 @@ class StateServer(BaseComponent):
         pass
 
     def handle_message(self, from_channel, to_channel, message_type, *args):
-        print("StateServer received: {} -> {} ({})".format(
-            from_channel, to_channel, message_type,
-        ))
         if message_type == msgtypes.SET_INTEREST:
             recipient = args[0]
             zone = args[1]
@@ -46,20 +43,12 @@ class StateServer(BaseComponent):
             raise NotImplementedError
 
     def _handle_set_interest(self, recipient, zone):
-        print("StateServer sets interest for {} in {}".format(
-            recipient,
-            zone,
-        ))
         with self.state_lock:
             recipients = self.interests.get(zone, set())
             recipients.add(recipient)
             self.interests[zone] = recipients
 
     def _handle_unset_interest(self, recipient, zone):
-        print("StateServer revokes interest for {} in {}".format(
-            recipient,
-            zone,
-        ))
         with self.state_lock:
             recipients = self.interests[zone]
             recipients.remove(recipient)
