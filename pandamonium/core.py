@@ -17,8 +17,7 @@ class BaseComponent:
 class StateServer(BaseComponent):
     all_connections = channels.ALL_STATE_SERVERS
 
-    def __init__(self, message_director):
-        self.message_director = message_director
+    def __init__(self):
         self.objects = {}
         self.interests = {}
         self.interests_lock = Lock()
@@ -128,11 +127,14 @@ class AIAgent(BaseAgent):
 #   initial setup before a client has the chance to connect. Maybe there should
 #   be a whole sub-protocol about this setup phase?
 class MessageDirector:
-    def __init__(self, client_agent=None, ai_agent=None, wait_for_ai=True):
+    def __init__(self, state_server=None,client_agent=None, ai_agent=None,
+                 wait_for_ai=True):
         self.channels = {}
         self.channels_lock = Lock()
 
-        self.state_server = StateServer(self)
+        if state_server is None:
+            state_server = StateServer()
+        self.state_server = state_server
         self.state_server.set_message_director(self)
 
         if client_agent is None:
