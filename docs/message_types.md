@@ -1,20 +1,23 @@
-* Client to ClientAgent
-  DISCONNECT
-* ClientAgent to Client
-  CREATE_DOBJECT_VIEW
-  CREATE_OWNER_VIEW
-  DISCONNECT(reason)
+AI connection messages
+----------------------
 
---------------------------------------------------------------------------------
+* AIAgent to all AIRepositories
+  AI_CONNECTED
+* AIAgent to AIRepository
+  AI_CHANNEL_ASSIGNED
 
-* ClientAgent to network
-  CLIENT_CONNECT
-* Network to ClientAgent
 
---------------------------------------------------------------------------------
+Client connection messages
+--------------------------
 
-* AIAgent to network
-  AI_CONNECT
-* AI to StateServer
-  SET_INTEREST([(client, zone), ...])
-  REMOVE_INTEREST([(client, zone), ...])
+* ClientAgent to ClientRepository
+  * CONNECTED: The client's connection has been established.
+  * DISCONNECTED(reason): The client's connection is being terminated
+* ClientRepository to ClientAgent
+  * DISCONNECT: The client wants to disconnect. This will be replied to with a
+    DISCONNECTED("Client-requested disconnect.").
+* ClientAgent to all AIRepositories
+  * CLIENT_CONNECTED
+  * CLIENT_DISCONNECTED
+* AIRepository to ClientAgent
+  * DISCONNECT_CLIENT
