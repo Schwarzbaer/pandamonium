@@ -29,3 +29,13 @@ Interest management
 * AIRepository to StateServer
   * SET_INTEREST(recipient, zone): Set recipient interest in zone
   * UNSET_INTEREST(recipient, zone): Revoke recipient interest in zone
+
+
+dobject management
+------------------
+
+* AIRepository to StateServer
+  * CREATE_DOBJECT(dclass, fields, token)
+* StateServer to AIRepository
+  * DOBJECT_CREATED(dobject_id, token): The token will be the one given by
+    CREATE_DOBJECT.

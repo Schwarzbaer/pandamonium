@@ -305,10 +305,8 @@ class InternalClientListener(InternalListener):
 
 
 class InternalConnector(BaseConnector):
-    def __init__(self, listener):
+    def connect(self, listener):
         self.listener = listener
-
-    def connect(self):
         # Not having a complicated setup has the consequence that the connector
         # has to know and add the client ID.
         # Word of warning: The repo associated with this connection will receive

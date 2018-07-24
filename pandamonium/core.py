@@ -2,6 +2,8 @@ from threading import Lock
 
 from pandamonium.config import config
 from pandamonium.constants import channels, msgtypes
+from pandamonium.dobject import DistributedObject
+from pandamonium.util import IDGenerator
 
 
 class BaseComponent:
@@ -10,15 +12,17 @@ class BaseComponent:
         self.message_director.subscribe_to_channel(self.all_connections, self)
 
     def handle_message(self, from_channel, to_channel, message_type, *args):
-
         raise NotImplementedError
 
 
 class StateServer(BaseComponent):
     all_connections = channels.ALL_STATE_SERVERS
+    dobject_ids = (0, 999999)
+    dobject_class = DistributedObject
 
     def __init__(self):
-        self.objects = {}
+        self.dobjects = {}
+        self.zones = {}
         self.interests = {}
         # TODO: For the moment, we'll use a single lock to protect the whole of
         # the state; dobject existence, presence in zones, and interest. This is
@@ -26,6 +30,7 @@ class StateServer(BaseComponent):
         # deadlocks. Maybe do optimistic concurrency? Have a nifty planner
         # that'll schedule event processing into isolated parallelity?
         self.state_lock = Lock()
+        self.id_gen = IDGenerator(id_range=self.dobject_ids)
 
     def shutdown(self):
         pass
@@ -39,6 +44,12 @@ class StateServer(BaseComponent):
             recipient = args[0]
             zone = args[1]
             self._handle_unset_interest(recipient, zone)
+        elif message_type == msgtypes.CREATE_DOBJECT:
+            dclass = args[0]
+            fields = args[1]
+            creator =  from_channel
+            token = args[2]
+            self._handle_create_dobject(dclass, fields, creator, token)
         else:
             raise NotImplementedError
 
@@ -47,11 +58,28 @@ class StateServer(BaseComponent):
             recipients = self.interests.get(zone, set())
             recipients.add(recipient)
             self.interests[zone] = recipients
+            # TODO: Send view creation messages to recipient for dobjects it
+            # doesn't see already.
 
     def _handle_unset_interest(self, recipient, zone):
         with self.state_lock:
             recipients = self.interests[zone]
             recipients.remove(recipient)
+            # TODO: Send view destruction messages for dobjects that have fallen
+            # out of all of the recipients interests.
+
+    def _handle_create_dobject(self, dclass, fields, creator, token):
+        dobject_id = self.id_gen.get_new()
+        with self.state_lock:
+            dobject = self.dobject_class(self, dobject_id, dclass, fields)
+            self.dobjects[dobject_id] = dobject
+        self.message_director.create_message(
+            self.all_connections,  # FIXME: This individual StateServer's ID
+            creator,
+            msgtypes.DOBJECT_CREATED,
+            dobject_id,
+            token,
+        )
 
 
 # FIXME: Add _handle_incoming_message()?

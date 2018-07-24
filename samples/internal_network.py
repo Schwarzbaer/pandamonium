@@ -15,22 +15,34 @@ from pandamonium.sockets import (
     InternalClientConnector,
 )
 from pandamonium.repository import ClientRepository, AIRepository
+from pandamonium.dobject import DistributedObject
 
 
 FIRST_CONTACT_ZONE = 0
 
 
-class DemoClientAgent(ClientAgent, InternalClientListener):
-    def handle_message(self, from_channel, to_channel, message_type, *args):
-        print("ClientAgent got message to handle: {} -> {} ({})".format(
-            from_channel, to_channel, message_type,
+class DemoDistributedObject(DistributedObject):
+    def __init__(self, state_server, dobject_id, dclass, fields):
+        print("dobject {} (class {}) created with: {}".format(
+            dobject_id,
+            dclass,
+            fields,
         ))
-        super().handle_message(
-            from_channel,
-            to_channel,
-            message_type,
-            *args,
-        )
+        super().__init__(state_server, dobject_id, dclass, fields)
+
+
+class DemoClientAgent(ClientAgent, InternalClientListener):
+    # This override is a bit spammy.
+    # def handle_message(self, from_channel, to_channel, message_type, *args):
+    #     print("ClientAgent got message to handle: {} -> {} ({})".format(
+    #         from_channel, to_channel, message_type,
+    #     ))
+    #     super().handle_message(
+    #         from_channel,
+    #         to_channel,
+    #         message_type,
+    #         *args,
+    #     )
 
     def handle_broadcast_message(self, from_channel, to_channel, message_type,
                                  *args):
@@ -58,16 +70,17 @@ class DemoClientAgent(ClientAgent, InternalClientListener):
 
 
 class DemoAIAgent(AIAgent, InternalAIListener):
-    def handle_message(self, from_channel, to_channel, message_type, *args):
-        print("AIAgent got message to handle: {} -> {} ({})".format(
-            from_channel, to_channel, message_type,
-        ))
-        super().handle_message(
-            from_channel,
-            to_channel,
-            message_type,
-            *args,
-        )
+    # This override is a bit spammy.
+    # def handle_message(self, from_channel, to_channel, message_type, *args):
+    #     print("AIAgent got message to handle: {} -> {} ({})".format(
+    #         from_channel, to_channel, message_type,
+    #     ))
+    #     super().handle_message(
+    #         from_channel,
+    #         to_channel,
+    #         message_type,
+    #         *args,
+    #     )
 
     def handle_broadcast_message(self, from_channel, to_channel, message_type,
                                  *args):
@@ -95,6 +108,8 @@ class DemoAIAgent(AIAgent, InternalAIListener):
 
 
 class DemoStateServer(StateServer):
+    dobject_class = DemoDistributedObject
+
     def handle_message(self, from_channel, to_channel, message_type, *args):
         print("StateServer received: {} -> {} ({})".format(
             from_channel, to_channel, message_type,
@@ -127,24 +142,32 @@ message_director = MessageDirector(
 
 
 class DemoAIRepository(AIRepository, InternalAIConnector):
+    def __init__(self):
+        self.token_callbacks = {}
+
     def handle_message(self, from_channel, to_channel, message_type, *args):
-        print("DemoAIRepository got message to handle: {} -> {} ({})".format(
+        print("AIRepository got message to handle: {} -> {} ({})".format(
             from_channel, to_channel, message_type,
         ))
         super().handle_message(from_channel, to_channel, message_type, *args)
 
     def handle_channel_assigned(self, channel):
-        print("DemoAIRepository was assigned channel {}".format(channel))
+        print("AIRepository was assigned channel {}".format(channel))
         super().handle_channel_assigned(channel)
+        self.create_dobject(
+            0,
+            {},
+            self.demo_dobject_creation_callback,
+        )
 
     def handle_ai_connected(self, channel):
-        print("DemoAIRepository {} learned that AI repo {} connected".format(
+        print("AIRepository {} learned that AI repo {} connected".format(
             self.channel,
             channel,
         ))
 
     def handle_client_connected(self, client_id):
-        print("DemoAIRepository {} learned that "
+        print("AIRepository {} learned that "
               "client repo {} connected".format(
             self.channel,
             client_id,
@@ -155,29 +178,45 @@ class DemoAIRepository(AIRepository, InternalAIConnector):
     def handle_client_disconnected(self, client_id):
         print("Client {} has disconnected".format(client_id))
 
+    def create_dobject(self, dclass, fields, callback):
+        token = "token" # FIXME: This should *really* be an incremental ID.
+        self.token_callbacks[token] = callback
+        super().create_dobject(dclass, fields, token)
 
-ai_repository = DemoAIRepository(ai_agent)
-ai_repository.connect()
+    def handle_dobject_created(self, dobject_id, token):
+        print("AIRepository {} learned that dobject {} was created with "
+              "token \"{}\"".format(self.channel, dobject_id, token))
+        callback = self.token_callbacks[token]
+        del self.token_callbacks[token]
+        callback(dobject_id)
+
+    def demo_dobject_creation_callback(self, dobject_id):
+        print("AIRepository {} dobject creation callback executed for "
+              "dobject \"{}\"".format(self.channel, dobject_id))
+
+
+ai_repository = DemoAIRepository()
+ai_repository.connect(ai_agent)
 
 
 class DemoClientRepository(ClientRepository, InternalClientConnector):
     def handle_message(self, message_type, *args):
-        print("DemoClientRepository got message to handle: {}".format(
+        print("ClientRepository got message to handle: {}".format(
             message_type
         ))
         super().handle_message(message_type, *args)
 
     def handle_connected(self):
-        print("DemoClientRepository has connected to network.")
+        print("ClientRepository has connected to network.")
 
     def handle_disconnected(self, reason):
-        print("DemoClientRepository is being disconnected, reason: {}".format(
+        print("ClientRepository is being disconnected, reason: {}".format(
             reason,
         ))
 
 
-client_repository = DemoClientRepository(client_agent)
-client_repository.connect()
+client_repository = DemoClientRepository()
+client_repository.connect(client_agent)
 ## client_repository.disconnect()
 print("-----------------------------------------------------------------------")
 

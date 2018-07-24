@@ -48,6 +48,10 @@ class AIRepository(BaseRepository):
         elif message_type == msgtypes.CLIENT_DISCONNECTED:
             client_id = args[0]
             self.handle_client_disconnected(client_id)
+        elif message_type == msgtypes.DOBJECT_CREATED:
+            dobject_id = args[0]
+            token = args[1]
+            self.handle_dobject_created(dobject_id, token)
         else:
             # FIXME: Better to log it and drop it on the floor?
             raise NotImplementedError
@@ -67,6 +71,10 @@ class AIRepository(BaseRepository):
 
     def handle_client_disconnected(self, client_id):
         """Message handler: A client has disconnected from the network."""
+        pass
+
+    def handle_dobject_created(self, dobject_id, token):
+        """A dobject has been created, probably on request by this repo."""
         pass
 
     def disconnect_client(self, client_id, reason):
@@ -97,4 +105,14 @@ class AIRepository(BaseRepository):
             msgtypes.UNSET_INTEREST,
             recipient,
             zone,
+        )
+
+    def create_dobject(self, dclass, fields, token):
+        self.send_message(
+            self.channel,
+            channels.ALL_STATE_SERVERS,  # FIXME: Just the specific?
+            msgtypes.CREATE_DOBJECT,
+            dclass,
+            fields,
+            token,
         )

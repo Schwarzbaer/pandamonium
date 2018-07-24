@@ -42,3 +42,7 @@ class msgtypes:
     SET_INTEREST = MsgType(2000, "SET_INTEREST")
     # ai repo -> state server
     UNSET_INTEREST = MsgType(2001, "UNSET_INTEREST")
+    # ai repo -> state server
+    CREATE_DOBJECT = MsgType(2002, "CREATE_DOBJECT")
+    # state server -> ai repo
+    DOBJECT_CREATED = MsgType(2002, "DOBJECT_CREATED")
