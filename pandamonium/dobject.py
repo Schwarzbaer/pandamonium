@@ -4,7 +4,11 @@ class DistributedObject:
         self.dobject_id = dobject_id
         self.dclass = dclass
         self.fields = fields
+        self.owner = None
         self.ai_channel = None
+
+    def set_owner(self, owner):
+        self.owner = owner
 
     def set_ai(self, ai_channel):
         self.ai_channel = ai_channel

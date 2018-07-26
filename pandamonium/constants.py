@@ -46,3 +46,9 @@ class msgtypes:
     CREATE_DOBJECT = MsgType(2002, "CREATE_DOBJECT")
     # state server -> ai repo
     DOBJECT_CREATED = MsgType(2002, "DOBJECT_CREATED")
+    # ai repo -> state server
+    SET_AI = MsgType(2003, "SET_AI")
+    # state server -> interested
+    CREATE_DOBJECT_VIEW = MsgType(2004, "CREATE_DOBJECT_VIEW")
+    # state server -> ai repo
+    CREATE_AI_VIEW = MsgType(2005, "CREATE_AI_VIEW")

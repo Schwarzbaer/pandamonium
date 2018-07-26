@@ -52,6 +52,9 @@ class AIRepository(BaseRepository):
             dobject_id = args[0]
             token = args[1]
             self.handle_dobject_created(dobject_id, token)
+        elif message_type == msgtypes.CREATE_AI_VIEW:
+            dobject_id = args[0]
+            self.handle_create_ai_view(dobject_id)
         else:
             # FIXME: Better to log it and drop it on the floor?
             raise NotImplementedError
@@ -116,3 +119,16 @@ class AIRepository(BaseRepository):
             fields,
             token,
         )
+
+    def set_ai(self, ai_channel, dobject_id):
+        self.send_message(
+            self.channel,
+            channels.ALL_STATE_SERVERS,  # FIXME: Just the specific?
+            msgtypes.SET_AI,
+            ai_channel,
+            dobject_id,
+        )
+
+    def handle_create_ai_view(self, dobject_id):
+        """This AI has been made the controlling AI for the dobject."""
+        raise NotImplementedError

@@ -29,6 +29,11 @@ class StateServer(BaseComponent):
         # a topic ripe for optimization, if you can do it without creating
         # deadlocks. Maybe do optimistic concurrency? Have a nifty planner
         # that'll schedule event processing into isolated parallelity?
+        # One aspect that should be considered (even before optimizing) is that
+        # messages should be sent with an order resembling their causality.
+        # Otherwise repositories may receive messages in orders that just don't
+        # make sense, or repositories will have to do overly complicated
+        # bookkeeping.
         self.state_lock = Lock()
         self.id_gen = IDGenerator(id_range=self.dobject_ids)
 
@@ -50,6 +55,10 @@ class StateServer(BaseComponent):
             creator =  from_channel
             token = args[2]
             self._handle_create_dobject(dclass, fields, creator, token)
+        elif message_type == msgtypes.SET_AI:
+            ai_channel = args[0]
+            dobject_id = args[1]
+            self._handle_set_ai(ai_channel, dobject_id)
         else:
             raise NotImplementedError
 
@@ -58,7 +67,7 @@ class StateServer(BaseComponent):
             recipients = self.interests.get(zone, set())
             recipients.add(recipient)
             self.interests[zone] = recipients
-            # TODO: Send view creation messages to recipient for dobjects it
+            # TODO: Send CREATE_DOBJECT_VIEW to recipient for dobjects it
             # doesn't see already.
 
     def _handle_unset_interest(self, recipient, zone):
@@ -79,6 +88,19 @@ class StateServer(BaseComponent):
             msgtypes.DOBJECT_CREATED,
             dobject_id,
             token,
+        )
+
+    def _handle_set_ai(self, ai_channel, dobject_id):
+        with self.state_lock:
+            self.dobjects[dobject_id].set_ai(ai_channel)
+        self.message_director.create_message(
+            self.all_connections,  # FIXME: This individual StateServer's ID
+            ai_channel,
+            msgtypes.CREATE_AI_VIEW,
+            dobject_id,  # FIXME: Either we also need to add all state
+                         # information, or, better (because later updates)
+                         # assure that the dobject is already in the AI's
+                         # interest.
         )
 
 

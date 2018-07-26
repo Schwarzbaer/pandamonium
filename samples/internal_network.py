@@ -2,6 +2,37 @@
 #
 # from direct.showbase.ShowBase import ShowBase
 
+# Here's a quick overview of what this sample does:
+# * Cobble together the server, consisting of StateServer, AIAgent, ClientAgent,
+#   and MessageDirector.
+#   TODO: The classes as overridden here are merely doing what they should be
+#   doing at loglevel TRACE, so... make them do that instead. Makes for a much
+#   shorter sample.
+# * Create and "connect" an AIRepository.
+# * When the AIRepository gets a channel assignment message, which is for now
+#   doubling as its "You're ready to go" signal, it
+#   * sets interest in the "first contact zone"
+#   * creates a dobject of dclass 0; for now, that means nothing, since I
+#     haven't implemented dclasses and dobject behavior yet.
+# * When the AIRepository is notified that the dobject creation has happened, it
+#   sets itself as the dobject's AI.
+#   TODO: What *should* happen, to enforce better causality, is that the repo
+#   sets itself as AI once it is told to create a view for the dobject. That way
+#   there's no need to juggle the "What if we're set as AI before we even see
+#   the dobject?" case.
+# * When the AIRepository learns that a client has connected to the server, it
+#   sets interest for the client in the first contact zone. Now the client sees
+#   the dobject in it, too.
+# TODO:
+# * Demonstrate that the dobject works by sending messages for it back and
+#   forth.
+# * Break it all down again.
+# * A Panda3D sample (without auth, which is what this first dobject would
+#   typically be for) should have the AI create a dobject for each client, set
+#   that client as owner, and let them all move around in 3D space until the
+#   client disconnects.
+
+
 from pandamonium.core import (
     StateServer,
     ClientAgent,
@@ -154,6 +185,7 @@ class DemoAIRepository(AIRepository, InternalAIConnector):
     def handle_channel_assigned(self, channel):
         print("AIRepository was assigned channel {}".format(channel))
         super().handle_channel_assigned(channel)
+        self.set_interest(self.channel, FIRST_CONTACT_ZONE)
         self.create_dobject(
             0,
             {},
@@ -193,6 +225,13 @@ class DemoAIRepository(AIRepository, InternalAIConnector):
     def demo_dobject_creation_callback(self, dobject_id):
         print("AIRepository {} dobject creation callback executed for "
               "dobject \"{}\"".format(self.channel, dobject_id))
+        # TODO : Make dobject present in FIRST_CONTACT_ZONE
+        self.set_ai(self.channel, dobject_id)
+
+    def handle_create_ai_view(self, dobject_id):
+        print("AIRepository {} has been made the controlling AI "
+              "for dobject \"{}\"".format(self.channel, dobject_id))
+        # TODO: Well, create that AI view!
 
 
 ai_repository = DemoAIRepository()

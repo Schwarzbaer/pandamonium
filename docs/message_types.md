@@ -23,19 +23,19 @@ Client connection messages
   * DISCONNECT_CLIENT(client_id, reason)
 
 
-Interest management
--------------------
-
-* AIRepository to StateServer
-  * SET_INTEREST(recipient, zone): Set recipient interest in zone
-  * UNSET_INTEREST(recipient, zone): Revoke recipient interest in zone
-
-
 dobject management
 ------------------
 
 * AIRepository to StateServer
+  * SET_INTEREST(recipient, zone): Set recipient interest in zone
+  * UNSET_INTEREST(recipient, zone): Revoke recipient interest in zone
   * CREATE_DOBJECT(dclass, fields, token)
+  * SET_AI(ai_channel, dobject_id)
 * StateServer to AIRepository
   * DOBJECT_CREATED(dobject_id, token): The token will be the one given by
     CREATE_DOBJECT.
+  * CREATE_AI_VIEW(dobject_id)
+* StateServer to Interest recipients
+  * CREATE_DOBJECT_VIEW(dobject_id, dclass, fields): Create a basic view of a
+    dobject that has been added to a zone that a recipient has interest in, or
+    which is already in a zone that the recipient has just gotten interest in.
