@@ -1,9 +1,14 @@
 from threading import Lock
+import logging
 
 from pandamonium.config import config
 from pandamonium.constants import channels, msgtypes
 from pandamonium.dobject import DistributedObject
 from pandamonium.util import IDGenerator
+
+
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 
 class BaseComponent:
@@ -41,6 +46,9 @@ class StateServer(BaseComponent):
         pass
 
     def handle_message(self, from_channel, to_channel, message_type, *args):
+        logger.debug("StateServer received: {} -> {} ({})".format(
+            from_channel, to_channel, message_type,
+        ))
         if message_type == msgtypes.SET_INTEREST:
             recipient = args[0]
             zone = args[1]
@@ -63,6 +71,10 @@ class StateServer(BaseComponent):
             raise NotImplementedError
 
     def _handle_set_interest(self, recipient, zone):
+        logger.debug("StateServer sets interest for {} in {}".format(
+            recipient,
+            zone,
+        ))
         with self.state_lock:
             recipients = self.interests.get(zone, set())
             recipients.add(recipient)
@@ -71,6 +83,10 @@ class StateServer(BaseComponent):
             # doesn't see already.
 
     def _handle_unset_interest(self, recipient, zone):
+        logger.debug("StateServer revokes interest for {} in {}".format(
+            recipient,
+            zone,
+        ))
         with self.state_lock:
             recipients = self.interests[zone]
             recipients.remove(recipient)
@@ -112,6 +128,9 @@ class BaseAgent(BaseComponent):
 
     def handle_message(self, from_channel, to_channel, message_type, *args):
         """Message for the agent, or one of its connections."""
+        logger.debug("Agent {} got message to handle: {} -> {} ({})".format(
+            self, from_channel, to_channel, message_type,
+        ))
         if to_channel == self.all_connections:
             # message to the agent
             self.handle_broadcast_message(
@@ -134,6 +153,7 @@ class ClientAgent(BaseAgent):
     connection_ids = channels.CLIENTS
 
     def handle_connection(self, client_id, addr):
+        logger.info("Connection from client {} ({})".format(client_id, addr))
         self.message_director.create_message(
             client_id,
             client_id,
@@ -152,6 +172,7 @@ class AIAgent(BaseAgent):
     connection_ids = channels.AIS
 
     def handle_connection(self, ai_id, addr):
+        logger.info("Connection from AI {} ({})".format(ai_id, addr))
         self.message_director.create_message(
             self.all_connections,
             ai_id,
@@ -193,31 +214,36 @@ class MessageDirector:
         self.ai_agent.set_message_director(self)
 
     def startup(self):
+        logger.info("MessageDirector starting up.")
         self.ai_agent.listen()
         self.client_agent.listen()
+        logger.info("MessageDirector startup complete.")
 
     def shutdown(self):
         """Shut down the whole server."""
+        logger.info("MessageDirector shutting down.")
         self.ai_agent.shutdown()
         self.client_agent.shutdown()
         self.state_server.shutdown()
+        logger.info("MessageDirector shutdown complete.")
+
 
     def subscribe_to_channel(self, channel, listener):
-        print("DEBUG: New subscriber to {}: {}".format(channel, listener))
+        logger.debug("New subscriber to {}: {}".format(channel, listener))
         with self.channels_lock:
             listeners = self.channels.get(channel, set())
             listeners.add(listener)
             self.channels[channel] = listeners
 
     def unsubscribe_from_channel(self, channel, listener):
-        print("DEBUG: Unsubscribing from {}: {}".format(channel, listener))
+        logger.debug("Unsubscribing from {}: {}".format(channel, listener))
         with self.channels_lock:
             # TODO: And if some key error occurs?
             listeners = self.channels[channel]
             listeners.remove(listener)
 
     def create_message(self, from_channel, to_channel, message_type, *args):
-        print("DEBUG: {} -> {}: {}".format(
+        logger.debug("Creating message: {} -> {}: {}".format(
             from_channel, to_channel, message_type,
         ))
         with self.channels_lock:

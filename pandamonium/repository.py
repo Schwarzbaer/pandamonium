@@ -1,6 +1,11 @@
 import socket
+import logging
 
 from pandamonium.constants import channels, msgtypes
+
+
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 
 class BaseRepository:
@@ -12,6 +17,9 @@ class BaseRepository:
 class ClientRepository(BaseRepository):
     def handle_message(self, message_type, *args):
         """Message received, needs to be handled."""
+        logger.debug("ClientRepository got message to handle: {}".format(
+            message_type
+        ))
         if message_type == msgtypes.CONNECTED:
             self.connected()
         elif message_type == msgtypes.DISCONNECTED:
@@ -23,11 +31,13 @@ class ClientRepository(BaseRepository):
 
     def handle_connected(self):
         """Connection to client agent has been established."""
-        pass
+        logger.info("ClientRepository has connected to network.")
 
     def handle_disconnected(self, reason):
         """Connection will be terminated shortly by the other end."""
-        pass
+        logger.info("ClientRepository is being disconnected, reason: {}".format(
+            reason,
+        ))
 
 
 class AIRepository(BaseRepository):
@@ -35,6 +45,9 @@ class AIRepository(BaseRepository):
 
     def handle_message(self, from_channel, to_channel, message_type, *args):
         """Message received, needs to be handled."""
+        logger.debug("{} received message: {} -> {} ({})".format(
+            self, from_channel, to_channel, message_type,
+        ))
         # TODO: Validation
         if message_type == msgtypes.AI_CHANNEL_ASSIGNED:
             channel = args[0]
@@ -61,24 +74,33 @@ class AIRepository(BaseRepository):
 
     def handle_channel_assigned(self, channel):
         """A channel was assigned to this repository connection."""
+        logger.debug("AIRepository was assigned channel {}".format(channel))
         self.channel = channel
 
     def handle_ai_connected(self, channel):
         """An AI repository has connected to the network. That may be
         this repository, too."""
-        pass
+        logger.debug("AIRepository {} learned that AI repo {} connected".format(
+            self.channel,
+            channel,
+        ))
 
     def handle_client_connected(self, client_id):
         """A client repository has connected to the network."""
-        pass
+        logger.debug("AIRepository {} learned that "
+              "client repo {} connected".format(
+            self.channel,
+            client_id,
+        ))
 
     def handle_client_disconnected(self, client_id):
         """Message handler: A client has disconnected from the network."""
-        pass
+        logger.debug("Client {} has disconnected".format(client_id))
 
     def handle_dobject_created(self, dobject_id, token):
         """A dobject has been created, probably on request by this repo."""
-        pass
+        logger.debug("AIRepository {} learned that dobject {} was created with "
+              "token \"{}\"".format(self.channel, dobject_id, token))
 
     def disconnect_client(self, client_id, reason):
         """Send a disconnection message to the client. The ClientAgent should
@@ -131,4 +153,7 @@ class AIRepository(BaseRepository):
 
     def handle_create_ai_view(self, dobject_id):
         """This AI has been made the controlling AI for the dobject."""
-        raise NotImplementedError
+        logger.debug("AIRepository {} has been made the controlling AI "
+              "for dobject \"{}\"".format(self.channel, dobject_id))
+        # TODO: Well, create that AI view!
+        pass

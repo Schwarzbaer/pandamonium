@@ -1,9 +1,14 @@
 import socket
 from queue import Queue, Empty
 from threading import Thread, Lock
+import logging
 
 from pandamonium.util import IDGenerator
 from pandamonium.constants import channels, msgtypes
+
+
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 
 class BaseListener:
@@ -62,11 +67,11 @@ class NetworkListener(BaseListener):
 
     def listen(self):
         for _ in range(self.listeners):
-            print("INFO: Adding listener")
+            logger.info("{} adding listener".format(self))
             t = Thread(target=self.await_connection)
             self.listening_sockets.append(t)
             t.start()
-            print("INFO: Started listener thread {}".format(t.name))
+            logger.info("{} started listener thread {}".format(self, t.name))
 
     def await_connection(self):
         """Used internally by the listener threads. Accept new connections and
@@ -75,11 +80,11 @@ class NetworkListener(BaseListener):
             try:
                 connection = self.socket.accept()
                 sock, addr = connection
-                print("INFO: Connection from {}".format(addr))
+                logger.info("Connection from {}".format(addr))
                 self._setup_connection(connection)
             except socket.timeout:
                 pass
-        print("INFO: Stopping listener.")
+        logger.info("Stopping listener.")
 
     def _setup_connection(self, connection):
         connection_id = self.id_gen.get_new()
@@ -118,7 +123,7 @@ class NetworkListener(BaseListener):
     def threaded_read(self, connection_id):
         full_connection = self.connections[connection_id]
         sock, addr, thread, read_lock, write_lock = full_connection
-        print("INFO: Starting thread for connection {} ({})".format(
+        logger.info("Starting thread for connection {} ({})".format(
             connection_id, addr))
         # FIXME: If connection has been closed, stop loop too, and clean up.
         while self.keep_running:
@@ -128,7 +133,7 @@ class NetworkListener(BaseListener):
                     pass
                 except socket.timeout:
                     pass
-        print("INFO: Stopping thread for connection {}".format(connection_id))
+        logger.info("Stopping thread for connection {}".format(connection_id))
 
     def shutdown(self):
         self.keep_running = False
@@ -217,6 +222,9 @@ class InternalListener(BaseListener):
 class InternalAIListener(InternalListener):
     def handle_broadcast_message(self, from_channel, to_channel, message_type,
                                  *args):
+        logger.debug("AIAgent got broadcast to handle: {} -> {} ({})".format(
+            from_channel, to_channel, message_type,
+        ))
         for listener in self.listeners:
             self.listeners[listener].handle_message(
                 from_channel,
@@ -227,6 +235,11 @@ class InternalAIListener(InternalListener):
 
     def handle_connection_message(self, from_channel, to_channel, message_type,
                                   *args):
+        logger.debug("AIAgent got connection message to handle: {} -> {} ({})"
+                     "".format(
+                         from_channel, to_channel, message_type,
+                    )
+        )
         self.listeners[to_channel].handle_message(
             from_channel,
             to_channel,
@@ -249,6 +262,11 @@ class InternalAIListener(InternalListener):
 class InternalClientListener(InternalListener):
     def handle_broadcast_message(self, from_channel, to_channel, message_type,
                                  *args):
+        logger.debug("ClientAgent got broadcast to handle: {} -> {} ({})"
+                     "".format(
+                         from_channel, to_channel, message_type,
+                     )
+        )
         for listener in self.listeners:
             self.listeners[listener].handle_message(
                 message_type,
@@ -259,6 +277,11 @@ class InternalClientListener(InternalListener):
     # upwards / sideways in the class hierarchy?
     def handle_connection_message(self, from_channel, to_channel, message_type,
                                   *args):
+        logger.debug("ClientAgent got connection message to handle: "
+                     "{} -> {} ({})".format(
+                         from_channel, to_channel, message_type,
+                    )
+        )
         if message_type == msgtypes.DISCONNECT_CLIENT:
             client_id = to_channel
             reason = args[0]
@@ -306,6 +329,7 @@ class InternalClientListener(InternalListener):
 
 class InternalConnector(BaseConnector):
     def connect(self, listener):
+        logger.debug("{} connecting to {}".format(self, listener))
         self.listener = listener
         # Not having a complicated setup has the consequence that the connector
         # has to know and add the client ID.
@@ -324,6 +348,11 @@ class InternalConnector(BaseConnector):
 
 class InternalAIConnector(InternalConnector):
     def send_message(self, from_channel, to_channel, message_type, *args):
+        logger.debug("AI sending message {} -> {} ({})".format(
+            from_channel,
+            to_channel,
+            message_type,
+        ))
         self.listener.handle_incoming_message(
             from_channel,
             to_channel,
@@ -334,6 +363,7 @@ class InternalAIConnector(InternalConnector):
 
 class InternalClientConnector(InternalConnector):
     def send_message(self, message_type, *args):
+        logger.debug("Client sending message ({})".format(message_type))
         self.listener.handle_incoming_message(
             self.connection_id,
             self.connection_id,

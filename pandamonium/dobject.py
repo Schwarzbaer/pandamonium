@@ -1,5 +1,17 @@
+import logging
+
+
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
+
+
 class DistributedObject:
     def __init__(self, state_server, dobject_id, dclass, fields):
+        logger.debug("dobject {} (class {}) created with: {}".format(
+            dobject_id,
+            dclass,
+            fields,
+        ))
         self.state_server = state_server
         self.dobject_id = dobject_id
         self.dclass = dclass
