@@ -33,6 +33,8 @@
 #   client disconnects.
 
 
+import logging
+
 from pandamonium.core import (
     StateServer,
     ClientAgent,
@@ -47,6 +49,10 @@ from pandamonium.sockets import (
 )
 from pandamonium.repository import ClientRepository, AIRepository
 from pandamonium.dobject import DistributedObject
+
+
+logging.basicConfig(level=logging.DEBUG)
+# logging.basicConfig(level=logging.INFO)
 
 
 FIRST_CONTACT_ZONE = 0

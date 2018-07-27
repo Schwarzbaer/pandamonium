@@ -7,7 +7,6 @@ from pandamonium.util import IDGenerator
 from pandamonium.constants import channels, msgtypes
 
 
-logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 

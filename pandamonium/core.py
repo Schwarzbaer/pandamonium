@@ -7,7 +7,6 @@ from pandamonium.dobject import DistributedObject
 from pandamonium.util import IDGenerator
 
 
-logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 
