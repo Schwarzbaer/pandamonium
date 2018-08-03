@@ -50,7 +50,7 @@ class ClientRepository(BaseRepository):
     def handle_create_dobject_view(self, dobject_id, dclass, fields):
         logger.info("ClientRepository creates view for "
               "dobject \"{}\"".format(dobject_id))
-        self.dobjects[dobject_id] = DistributedObject(
+        self.dobjects[dobject_id] = self.views[dclass.name](
             dobject_id,
             dclass,
             fields,
@@ -169,7 +169,7 @@ class AIRepository(BaseRepository):
     def handle_create_dobject_view(self, dobject_id, dclass, fields):
         logger.info("AIRepository {} creates view for "
               "dobject \"{}\"".format(self.channel, dobject_id))
-        self.dobjects[dobject_id] = DistributedObject(
+        self.dobjects[dobject_id] = self.views[dclass.name](
             dobject_id,
             dclass,
             fields,

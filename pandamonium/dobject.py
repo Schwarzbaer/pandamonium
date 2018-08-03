@@ -34,8 +34,15 @@ class DistributedField:
         self.policy = policy
 
 
+class FieldStorage:
+    def __init__(self, types, policy, values):
+        self.types = types
+        self.policy = policy
+        self.values = values  # FIXME: Number- and typecheck given values!
+
+
 class DistributedObject:
-    def __init__(self, dobject_id, dclass, fields):
+    def __init__(self, dobject_id, dclass, fields, repo=None):
         logger.info("Creating dobject {} (class {}) with fields: {}".format(
             dobject_id,
             dclass,
@@ -43,19 +50,33 @@ class DistributedObject:
         ))
         self.dobject_id = dobject_id
         self.dclass = dclass
+        self.repo = None
 
-        storage_fields = [field.name
-                          for field in self.dclass.fields
-                          if field.policy & (field_policies.RAM |
-                                             field_policies.PERSIST)]
-        print(storage_fields)
-        if len(fields) != len(storage_fields):
+        # We only store a subset of the values, based on the persistence policy.
+        # So we need a map of field_id -> storage_index
+        self.storage_map = [field_id
+                            for field_id, field in enumerate(self.dclass.fields)
+                            if field.policy & (field_policies.RAM |
+                                               field_policies.PERSIST)]
+        if len(fields) != len(self.storage_map):
             raise ValueError
-        # TODO: Now set the fields!
-        self.fields = []
+        self.storage = [None for storage_id, value in enumerate(fields)]
+        for storage_id, values in enumerate(fields):
+            field_id = self.storage_map[storage_id]
+            self.storage[storage_id] = FieldStorage(
+                self.classes.fields[field_id].types,
+                self.classes.fields[field_id].policy,
+                values,
+            )
 
         self.owner = None
         self.ai_channel = None
+
+        self.creation_hook()
+
+    def creation_hook(self):
+        """Overwrite this to do things when a dobject view has been created."""
+        pass
 
     def set_owner(self, owner):
         self.owner = owner

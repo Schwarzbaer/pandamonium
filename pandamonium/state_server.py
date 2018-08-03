@@ -227,7 +227,7 @@ class BaseStateServer(BaseComponent):
                     msgtypes.CREATE_DOBJECT_VIEW,
                     dobject_id,
                     dobject.dclass,
-                    dobject.fields,  # TODO: Limit to client-relevant fields
+                    dobject.storage,
                 )
 
     def emit_destroy_dobject_view(self, recipients, dobject_ids):

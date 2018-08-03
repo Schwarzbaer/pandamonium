@@ -32,7 +32,6 @@
 
 import logging
 
-from pandamonium.constants import field_policies
 from pandamonium.state_server import StateServer
 from pandamonium.core import (
     ClientAgent,
@@ -46,9 +45,11 @@ from pandamonium.sockets import (
     InternalClientConnector,
 )
 from pandamonium.repository import ClientRepository, AIRepository
-from pandamonium.dobject import (
-    create_class_definitions,
-    DistributedObject,
+
+from samples.simple_dclasses import (
+    dclasses,
+    view_classes_ai,
+    view_classes_client,
 )
 
 
@@ -58,16 +59,6 @@ logging.basicConfig(level=logging.INFO)
 
 # {dclass_id: {field_id: (type, keywords)}}
 # type = ((type_1, type2, ...), KEYWORDS)
-demo_dclasses = {'auth_service': {'userpass': ((str, str),
-                                               (field_policies.CLIENT_SEND |
-                                                field_policies.AI_RECEIVE))},
-                 'avatar': {'move_command': ((float, float),
-                                             (field_policies.OWNER_SEND,
-                                              field_policies.AI_RECEIVE)),
-                            'position': ((float, float),
-                                         (field_policies.AI_SEND,
-                                          field_policies.OWNER_RECEIVE))}}
-dclasses = create_class_definitions(demo_dclasses)
 
 
 FIRST_CONTACT_ZONE = 0
@@ -92,6 +83,8 @@ message_director = MessageDirector(
 
 
 class DemoAIRepository(AIRepository, InternalAIConnector):
+    views = view_classes_ai
+
     def __init__(self):
         self.token_callbacks = {}
         super().__init__()
@@ -134,7 +127,7 @@ ai_repository.connect(ai_agent)
 
 
 class DemoClientRepository(ClientRepository, InternalClientConnector):
-    pass
+    views = view_classes_client
 
 
 client_repository = DemoClientRepository()
