@@ -46,24 +46,28 @@ from pandamonium.sockets import (
     InternalClientConnector,
 )
 from pandamonium.repository import ClientRepository, AIRepository
-from pandamonium.dobject import DistributedObject
+from pandamonium.dobject import (
+    create_class_definitions,
+    DistributedObject,
+)
 
 
-logging.basicConfig(level=logging.DEBUG)
-# logging.basicConfig(level=logging.INFO)
+# logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 
 
 # {dclass_id: {field_id: (type, keywords)}}
 # type = ((type_1, type2, ...), KEYWORDS)
-demo_classes = {'auth_service': {'userpass': ((str, str),
-                                              (field_policies.CLIENT_SEND |
-                                               field_policies.AI_RECEIVE))},
-                'avatar': {'move_command': ((float, float),
-                                            (field_policies.OWNER_SEND,
-                                             field_policies.AI_RECEIVE)),
-                           'position': ((float, float),
-                                        (field_policies.AI_SEND,
-                                         field_policies.OWNER_RECEIVE))}}
+demo_dclasses = {'auth_service': {'userpass': ((str, str),
+                                               (field_policies.CLIENT_SEND |
+                                                field_policies.AI_RECEIVE))},
+                 'avatar': {'move_command': ((float, float),
+                                             (field_policies.OWNER_SEND,
+                                              field_policies.AI_RECEIVE)),
+                            'position': ((float, float),
+                                         (field_policies.AI_SEND,
+                                          field_policies.OWNER_RECEIVE))}}
+dclasses = create_class_definitions(demo_dclasses)
 
 
 FIRST_CONTACT_ZONE = 0
@@ -77,7 +81,7 @@ class DemoClientAgent(ClientAgent, InternalClientListener):
     pass
 
 
-state_server = StateServer()
+state_server = StateServer(dclasses)
 client_agent = DemoClientAgent()
 ai_agent = DemoAIAgent()
 message_director = MessageDirector(
@@ -90,6 +94,7 @@ message_director = MessageDirector(
 class DemoAIRepository(AIRepository, InternalAIConnector):
     def __init__(self):
         self.token_callbacks = {}
+        super().__init__()
 
     def handle_channel_assigned(self, channel):
         super().handle_channel_assigned(channel)

@@ -19,7 +19,8 @@ class BaseStateKeeper:
 
 
 class SimpleStateKeeper(BaseStateKeeper):
-    def __init__(self):
+    def __init__(self, dclasses):
+        self.dclasses = dclasses
         self.state = AssociativeTable('recipients', 'zones', 'dobjects')
         self.recipients = AssociativeTable('r_id', 'r_object')
         self.zones = AssociativeTable('z_id', 'z_object')
@@ -59,7 +60,7 @@ class SimpleStateKeeper(BaseStateKeeper):
         with self.state_lock:
             dobject = DistributedObject(
                 dobject_id,
-                dclass,
+                self.dclasses[dclass],
                 fields,
             )
             self.dobjects.d_id.add(dobject_id)
@@ -245,7 +246,6 @@ class BaseStateServer(BaseComponent):
             zone,
         ))
         new_dobjects = self.set_interest(recipient, zone)
-        logger.error("New dobjects: {}".format(new_dobjects))
 
     def handle_unset_interest(self, recipient, zone):
         logger.debug("StateServer revokes interest for {} in {}".format(
@@ -291,6 +291,6 @@ class BaseStateServer(BaseComponent):
 
 
 class StateServer(BaseStateServer, SimpleStateKeeper):
-    def __init__(self, *args, **kwargs):
-        SimpleStateKeeper.__init__(self)
-        BaseStateServer.__init__(self, *args, **kwargs)
+    def __init__(self, dclasses):
+        SimpleStateKeeper.__init__(self, dclasses)
+        BaseStateServer.__init__(self)

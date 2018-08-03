@@ -2,12 +2,16 @@ import socket
 import logging
 
 from pandamonium.constants import channels, msgtypes
+from pandamonium.dobject import DistributedObject
 
 
 logger = logging.getLogger(__name__)
 
 
 class BaseRepository:
+    def __init__(self):
+        self.dobjects = {}
+
     def connected(self):
         """Message handler: Network has acknowledged our connection."""
         pass
@@ -44,8 +48,13 @@ class ClientRepository(BaseRepository):
         ))
 
     def handle_create_dobject_view(self, dobject_id, dclass, fields):
-        logger.error("ClientRepository should create view for "
+        logger.info("ClientRepository creates view for "
               "dobject \"{}\"".format(dobject_id))
+        self.dobjects[dobject_id] = DistributedObject(
+            dobject_id,
+            dclass,
+            fields,
+        )
 
 
 class AIRepository(BaseRepository):
@@ -158,8 +167,13 @@ class AIRepository(BaseRepository):
         )
 
     def handle_create_dobject_view(self, dobject_id, dclass, fields):
-        logger.error("AIRepository {} should create view for "
+        logger.info("AIRepository {} creates view for "
               "dobject \"{}\"".format(self.channel, dobject_id))
+        self.dobjects[dobject_id] = DistributedObject(
+            dobject_id,
+            dclass,
+            fields,
+        )
 
     def add_to_zone(self, dobject_id, zone_id):
         self.send_message(
