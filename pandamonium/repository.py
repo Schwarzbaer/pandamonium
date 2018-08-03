@@ -24,6 +24,11 @@ class ClientRepository(BaseRepository):
         elif message_type == msgtypes.DISCONNECTED:
             reason = args[0]
             self.handle_disconnected(reason)
+        elif message_type == msgtypes.CREATE_DOBJECT_VIEW:
+            dobject_id = args[0]
+            dclass = args[1]
+            fields = args[2]
+            self.handle_create_dobject_view(dobject_id, dclass, fields)
         else:
             # FIXME: Better to log it and drop it on the floor?
             raise NotImplementedError
@@ -37,6 +42,10 @@ class ClientRepository(BaseRepository):
         logger.info("ClientRepository is being disconnected, reason: {}".format(
             reason,
         ))
+
+    def handle_create_dobject_view(self, dobject_id, dclass, fields):
+        logger.error("ClientRepository should create view for "
+              "dobject \"{}\"".format(dobject_id))
 
 
 class AIRepository(BaseRepository):
@@ -64,9 +73,16 @@ class AIRepository(BaseRepository):
             dobject_id = args[0]
             token = args[1]
             self.handle_dobject_created(dobject_id, token)
+        elif message_type == msgtypes.CREATE_DOBJECT_VIEW:
+            dobject_id = args[0]
+            dclass = args[1]
+            fields = args[2]
+            self.handle_create_dobject_view(dobject_id, dclass, fields)
         elif message_type == msgtypes.CREATE_AI_VIEW:
             dobject_id = args[0]
-            self.handle_create_ai_view(dobject_id)
+            dclass = args[1]
+            fields = args[2]
+            self.handle_create_ai_view(dobject_id, dclass, fields)
         else:
             # FIXME: Better to log it and drop it on the floor?
             raise NotImplementedError
@@ -141,6 +157,19 @@ class AIRepository(BaseRepository):
             token,
         )
 
+    def handle_create_dobject_view(self, dobject_id, dclass, fields):
+        logger.error("AIRepository {} should create view for "
+              "dobject \"{}\"".format(self.channel, dobject_id))
+
+    def add_to_zone(self, dobject_id, zone_id):
+        self.send_message(
+            self.channel,
+            channels.ALL_STATE_SERVERS,  # FIXME: Just the specific?
+            msgtypes.ADD_TO_ZONE,
+            dobject_id,
+            zone_id,
+        )
+
     def set_ai(self, ai_channel, dobject_id):
         self.send_message(
             self.channel,
@@ -150,7 +179,7 @@ class AIRepository(BaseRepository):
             dobject_id,
         )
 
-    def handle_create_ai_view(self, dobject_id):
+    def handle_create_ai_view(self, dobject_id, dclass, fields):
         """This AI has been made the controlling AI for the dobject."""
         logger.debug("AIRepository {} has been made the controlling AI "
               "for dobject \"{}\"".format(self.channel, dobject_id))

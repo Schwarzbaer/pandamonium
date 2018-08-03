@@ -46,9 +46,17 @@ class msgtypes:
     CREATE_DOBJECT = MsgType(2002, "CREATE_DOBJECT")
     # state server -> ai repo
     DOBJECT_CREATED = MsgType(2002, "DOBJECT_CREATED")
+    # ai -> state server
+    ADD_TO_ZONE = MsgType(2003, "ADD_TO_ZONE")
+    # ai -> state server
+    REMOVE_FROM_ZONE = MsgType(2004, "REMOVE_FROM_ZONE")
     # ai repo -> state server
-    SET_AI = MsgType(2003, "SET_AI")
+    SET_AI = MsgType(2010, "SET_AI")
+    # ai repo -> state server
+    SET_OWNER = MsgType(2011, "SET_OWNER")
     # state server -> interested
-    CREATE_DOBJECT_VIEW = MsgType(2004, "CREATE_DOBJECT_VIEW")
+    CREATE_DOBJECT_VIEW = MsgType(2020, "CREATE_DOBJECT_VIEW")
     # state server -> ai repo
-    CREATE_AI_VIEW = MsgType(2005, "CREATE_AI_VIEW")
+    CREATE_AI_VIEW = MsgType(2021, "CREATE_AI_VIEW")
+    # state server -> owner repo
+    CREATE_OWNER_VIEW = MsgType(2022, "CREATE_OWNER_VIEW")

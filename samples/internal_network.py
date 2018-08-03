@@ -35,8 +35,8 @@
 
 import logging
 
+from pandamonium.state_server import StateServer
 from pandamonium.core import (
-    StateServer,
     ClientAgent,
     AIAgent,
     MessageDirector,
@@ -109,7 +109,8 @@ class DemoAIRepository(AIRepository, InternalAIConnector):
         print("AIRepository {} dobject creation callback executed for "
               "dobject \"{}\"".format(self.channel, dobject_id))
         # TODO : Make dobject present in FIRST_CONTACT_ZONE
-        self.set_ai(self.channel, dobject_id)
+        self.add_to_zone(dobject_id, FIRST_CONTACT_ZONE)
+        #self.set_ai(self.channel, dobject_id)
 
 
 ai_repository = DemoAIRepository()
@@ -122,6 +123,11 @@ class DemoClientRepository(ClientRepository, InternalClientConnector):
 
 client_repository = DemoClientRepository()
 client_repository.connect(client_agent)
+
+
+
+
+
 ## client_repository.disconnect()
 print("-----------------------------------------------------------------------")
 
