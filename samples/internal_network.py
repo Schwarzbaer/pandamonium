@@ -5,9 +5,6 @@
 # Here's a quick overview of what this sample does:
 # * Cobble together the server, consisting of StateServer, AIAgent, ClientAgent,
 #   and MessageDirector.
-#   TODO: The classes as overridden here are merely doing what they should be
-#   doing at loglevel TRACE, so... make them do that instead. Makes for a much
-#   shorter sample.
 # * Create and "connect" an AIRepository.
 # * When the AIRepository gets a channel assignment message, which is for now
 #   doubling as its "You're ready to go" signal, it
@@ -35,6 +32,7 @@
 
 import logging
 
+from pandamonium.constants import field_policies
 from pandamonium.state_server import StateServer
 from pandamonium.core import (
     ClientAgent,
@@ -53,6 +51,19 @@ from pandamonium.dobject import DistributedObject
 
 logging.basicConfig(level=logging.DEBUG)
 # logging.basicConfig(level=logging.INFO)
+
+
+# {dclass_id: {field_id: (type, keywords)}}
+# type = ((type_1, type2, ...), KEYWORDS)
+demo_classes = {'auth_service': {'userpass': ((str, str),
+                                              (field_policies.CLIENT_SEND |
+                                               field_policies.AI_RECEIVE))},
+                'avatar': {'move_command': ((float, float),
+                                            (field_policies.OWNER_SEND,
+                                             field_policies.AI_RECEIVE)),
+                           'position': ((float, float),
+                                        (field_policies.AI_SEND,
+                                         field_policies.OWNER_RECEIVE))}}
 
 
 FIRST_CONTACT_ZONE = 0

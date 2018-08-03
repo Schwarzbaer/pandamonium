@@ -1,3 +1,14 @@
+class field_policies:
+    CLIENT_SEND = 1 << 0  # Any client or AI can send to this field
+    OWNER_SEND = 1 << 1  # Only the owner can send
+    AI_SEND = 1 << 2  # Only the AI can send
+    CLIENT_RECEIVE = 1 << 3  # All recipients will receive updates
+    OWNER_RECEIVE = 1 << 4  # Only the dobject's owner receives updates
+    AI_RECEIVE = 1 << 5  # Only the dobject's AI receives updates
+    RAM = 1 << 6  # State is stored for the server's runtime
+    PERSIST = 1 << 7  # State is persisted, i.e. on disk
+
+
 class channels:
     ALL_MESSAGE_DIRECTORS = 0
     ALL_STATE_SERVERS = 1
