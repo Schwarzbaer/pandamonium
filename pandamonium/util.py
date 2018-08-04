@@ -113,3 +113,27 @@ class AssociativeTable:
             raise KeyError(element_b)
         self._column_of_element[element_a].del_assoc(element_a, element_b)
         self._column_of_element[element_b].del_assoc(element_b, element_a)
+
+
+class BijectiveMap:
+    def __init__(self):
+        self.forward_map = {}
+        self.backward_map = {}
+
+    def __setitem__(self, left_item, right_item):
+        self.forward_map[left_item] = right_item
+        self.backward_map[right_item] = left_item
+
+    def __getitem__(self, left_item):
+        return self.forward_map[left_item]
+
+    def get(self, left_item):
+        return self.forward_map[left_item]
+
+    def getreverse(self, right_item):
+        return self.backward_map[right_item]
+
+    def __delitem__(self, left_item):
+        right_item = self.forward_map[left_item]
+        del self.forward_map[left_item]
+        del self.backward_map[right_item]
