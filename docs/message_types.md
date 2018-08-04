@@ -43,3 +43,5 @@ dobject management
     dobject that has been added to a zone that a recipient has interest in, or
     which is already in a zone that the recipient has just gotten interest in.
   * DESTROY_DOBJECT_VIEW(dobject_id)
+* Repository to StateServer
+  * SET_FIELD(dobject_id, field, values)

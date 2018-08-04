@@ -16,6 +16,13 @@ class BaseRepository:
         """Message handler: Network has acknowledged our connection."""
         pass
 
+    def handle_create_dobject_view(self, dobject_id, dclass, fields):
+        self.dobjects[dobject_id] = self.views[dclass.name](
+            dobject_id,
+            dclass,
+            fields,
+            repo=self,
+        )
 
 class ClientRepository(BaseRepository):
     def handle_message(self, message_type, *args):
@@ -50,11 +57,7 @@ class ClientRepository(BaseRepository):
     def handle_create_dobject_view(self, dobject_id, dclass, fields):
         logger.info("ClientRepository creates view for "
               "dobject \"{}\"".format(dobject_id))
-        self.dobjects[dobject_id] = self.views[dclass.name](
-            dobject_id,
-            dclass,
-            fields,
-        )
+        super().handle_create_dobject_view(dobject_id, dclass, fields)
 
 
 class AIRepository(BaseRepository):
@@ -169,11 +172,7 @@ class AIRepository(BaseRepository):
     def handle_create_dobject_view(self, dobject_id, dclass, fields):
         logger.info("AIRepository {} creates view for "
               "dobject \"{}\"".format(self.channel, dobject_id))
-        self.dobjects[dobject_id] = self.views[dclass.name](
-            dobject_id,
-            dclass,
-            fields,
-        )
+        super().handle_create_dobject_view(dobject_id, dclass, fields)
 
     def add_to_zone(self, dobject_id, zone_id):
         self.send_message(

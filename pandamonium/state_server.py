@@ -153,6 +153,12 @@ class SimpleStateKeeper(BaseStateKeeper):
             self.emit_destroy_dobject_view(lost_recipient_ids, [dobject_id])
         return lost_recipient_ids
 
+    def set_field(self, source, dobject_id, field_id, value):
+        #with self.state_lock:
+        #    if 
+        import pdb; pdb.set_trace()
+        pass
+
 
 class BaseStateServer(BaseComponent):
     all_connections = channels.ALL_STATE_SERVERS
@@ -204,6 +210,12 @@ class BaseStateServer(BaseComponent):
             owner_channel = args[0]
             dobject_id = args[1]
             self.handle_set_owner(owner_channel, dobject_id)
+        elif message_type == msgtypes.SET_FIELD:
+            source = from_channel
+            dobject_id = args[0]
+            field_id = args[1]
+            value = args[2]
+            self.handle_set_field(source, dobject_id, field_id, value)
         else:
             raise NotImplementedError
 
@@ -289,6 +301,14 @@ class BaseStateServer(BaseComponent):
         #     dobject_id,
         # )
 
+    def handle_set_field(self, source, dobject_id, field_id, value):
+        logger.debug("{} sets {}'s field {} to {}".format(
+            source,
+            dobject_id,
+            field_id,
+            value,
+        ))
+        self.set_field(source, dobject_id, field_id, value)
 
 class StateServer(BaseStateServer, SimpleStateKeeper):
     def __init__(self, dclasses):

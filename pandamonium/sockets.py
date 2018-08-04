@@ -202,8 +202,10 @@ class InternalListener(BaseListener):
     def listen(self):
         pass  # Not necessary, as repos will just call _setup_connection().
 
-    def _setup_connection(self, listener):
-        connection_id = self.id_gen.get_new()
+    def _get_connection_id(self):
+        return self.id_gen.get_new()
+
+    def _setup_connection(self, listener, connection_id):
         self.listeners[connection_id] = listener
         self.message_director.subscribe_to_channel(connection_id, self)
         self.handle_connection(connection_id, 'internal')
@@ -291,18 +293,19 @@ class InternalClientListener(InternalListener):
                 *args,
             )
 
-    def handle_incoming_message(self, from_channel, to_channel, message_type,
-                                *args):
+    def handle_incoming_message(self, connection_id, message_type, *args):
         if message_type == msgtypes.DISCONNECT:
             client_id = from_channel
             self.handle_disconnect(client_id)
-        else:
+        elif message_type == msgtypes.SET_FIELD:
             self.message_director.create_message(
-                from_channel,
-                to_channel,
+                connection_id,
+                channels.ALL_STATE_SERVERS,  # FIXME: *ALL*?
                 message_type,
                 *args,
             )
+        else:
+            raise NotImplementedError
 
     def handle_disconnect(self, client_id):
         self.handle_connection_message(
@@ -336,7 +339,8 @@ class InternalConnector(BaseConnector):
         # and handle the CONNECTED message before this call finishes, meaning
         # that you shouldn't react to it in an override of connected() that'll
         # require knowing the connection ID.
-        self.connection_id = self.listener._setup_connection(self)
+        self.connection_id = listener._get_connection_id()
+        self.listener._setup_connection(self, self.connection_id)
 
     def send_message(self, message_type, *args):
         raise NotImplementedError
@@ -364,7 +368,6 @@ class InternalClientConnector(InternalConnector):
     def send_message(self, message_type, *args):
         logger.debug("Client sending message ({})".format(message_type))
         self.listener.handle_incoming_message(
-            self.connection_id,
             self.connection_id,
             message_type,
             *args,

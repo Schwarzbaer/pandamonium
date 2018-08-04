@@ -21,6 +21,8 @@ class DistributedClass:
         self.name = dclass_name
         self.fields = [DistributedField(f_name, dclass_def[f_name])
                        for f_name in sorted(dclass_def)]
+        self.field_id_by_name = {field.name: field_id
+                                 for field_id, field in enumerate(self.fields)}
 
     def __repr__(self):
         return "<dclass '{}'>".format(self.name)
@@ -50,7 +52,7 @@ class DistributedObject:
         ))
         self.dobject_id = dobject_id
         self.dclass = dclass
-        self.repo = None
+        self.repo = repo
 
         # We only store a subset of the values, based on the persistence policy.
         # So we need a map of field_id -> storage_index

@@ -1,4 +1,7 @@
-from pandamonium.constants import field_policies
+from pandamonium.constants import (
+    field_policies,
+    msgtypes,
+)
 from pandamonium.dobject import (
     create_class_definitions,
     DistributedObject,
@@ -24,7 +27,15 @@ class AuthServiceAI(DistributedObject):
 
 class AuthServiceClient(DistributedObject):
     def creation_hook(self):
-        print("Let's authenticate ourselves!")
+        self.send_auth("user", "pass")
+
+    def send_auth(self, username, password):
+        self.repo.send_message(
+            msgtypes.SET_FIELD,
+            self.dobject_id,
+            self.dclass.field_id_by_name['userpass'],  # FIXME: Use properties
+            (username, password),
+        )
 
 
 class AvatarAI(DistributedObject):
