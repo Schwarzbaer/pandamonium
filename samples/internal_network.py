@@ -93,8 +93,8 @@ class DemoAIRepository(AIRepository, InternalAIConnector):
         super().handle_channel_assigned(channel)
         self.set_interest(self.channel, FIRST_CONTACT_ZONE)
         self.create_dobject(
-            0,
-            {},
+            0, #"auth_service",
+            [],
             self.demo_dobject_creation_callback,
         )
 
@@ -103,10 +103,14 @@ class DemoAIRepository(AIRepository, InternalAIConnector):
         # self.disconnect_client(client_id, "For demonstration purposes.")
         self.set_interest(client_id, FIRST_CONTACT_ZONE)
 
-    def create_dobject(self, dclass, fields, callback):
-        token = "token" # FIXME: This should *really* be an incremental ID.
-        self.token_callbacks[token] = callback
-        super().create_dobject(dclass, fields, token)
+    def create_dobject(self, dclass_id, fields, callback=None):
+        # FIXME: Resolve dclass_id from name
+        if callback is not None:
+            token = "token" # FIXME: This should *really* be an incremental ID.
+            self.token_callbacks[token] = callback
+            super().create_dobject(dclass_id, fields, token)
+        else:
+            super().create_dobject(dclass_id, fields)
 
     def handle_dobject_created(self, dobject_id, token):
         super().handle_dobject_created(dobject_id, token)

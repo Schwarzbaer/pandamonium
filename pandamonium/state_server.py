@@ -222,24 +222,30 @@ class SimpleStateKeeper(BaseStateKeeper):
                 if policy & fp.CLIENT_RECEIVE:
                     for recipient in self._dobject_seen_by(dobject):
                         self._queue_message(
-                            self.individual_channel,
+                            source,
                             recipient,
                             msgtypes.FIELD_UPDATE,
-                            # FIXME
+                            dobject_id,
+                            field_id,
+                            value
                         )
                 elif policy & fp.OWNER_RECEIVE:
                     self._queue_message(
-                        self.individual_channel,
+                        source,
                         dobject.owner,
                         msgtypes.FIELD_UPDATE,
-                        # FIXME
+                        dobject_id,
+                        field_id,
+                        value
                     )
                 elif policy & fp.AI_RECEIVE:
                     self._queue_message(
-                        self.individual_channel,
+                        source,
                         dobject.ai,
                         msgtypes.FIELD_UPDATE,
-                        # FIXME
+                        dobject_id,
+                        field_id,
+                        value
                     )
                 # NOTE: else? I mean, there MUST be a sending policy?
             else:

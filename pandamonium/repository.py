@@ -95,6 +95,12 @@ class AIRepository(BaseRepository):
             dclass = args[1]
             fields = args[2]
             self.handle_create_ai_view(dobject_id, dclass, fields)
+        elif message_type == msgtypes.FIELD_UPDATE:
+            source = from_channel
+            dobject_id = args[0]
+            field_id = args[1]
+            values = args[2]
+            self.handle_field_update(source, dobject_id, field_id, values)
         else:
             # FIXME: Better to log it and drop it on the floor?
             raise NotImplementedError
@@ -159,7 +165,7 @@ class AIRepository(BaseRepository):
             zone,
         )
 
-    def create_dobject(self, dclass, fields, token):
+    def create_dobject(self, dclass, fields, token=None):
         self.send_message(
             self.channel,
             channels.ALL_STATE_SERVERS,  # FIXME: Just the specific?
@@ -192,9 +198,22 @@ class AIRepository(BaseRepository):
             dobject_id,
         )
 
+    def set_owner(self, owner_channel, dobject_id):
+        self.send_message(
+            self.channel,
+            channels.ALL_STATE_SERVERS,  # FIXME: Just the specific?
+            msgtypes.SET_OWNER,
+            owner_channel,
+            dobject_id,
+        )
+
     def handle_create_ai_view(self, dobject_id, dclass, fields):
         """This AI has been made the controlling AI for the dobject."""
         logger.debug("AIRepository {} has been made the controlling AI "
               "for dobject \"{}\"".format(self.channel, dobject_id))
         # TODO: Well, create that AI view!
         pass
+
+    def handle_field_update(self, source, dobject_id, field_id, values):
+        dobject = self.dobjects[dobject_id]
+        dobject.handle_field_update(source, dobject_id, field_id, values)

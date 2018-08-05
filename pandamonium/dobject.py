@@ -42,6 +42,9 @@ class FieldStorage:
         self.policy = policy
         self.values = values  # FIXME: Number- and typecheck given values!
 
+    def set(self, values):
+        self.values = values
+
 
 class DistributedObject:
     def __init__(self, dobject_id, dclass, fields, repo=None):
@@ -66,8 +69,8 @@ class DistributedObject:
         for storage_id, values in enumerate(fields):
             field_id = self.storage_map[storage_id]
             self.storage[storage_id] = FieldStorage(
-                self.classes.fields[field_id].types,
-                self.classes.fields[field_id].policy,
+                self.dclass.fields[field_id].types,
+                self.dclass.fields[field_id].policy,
                 values,
             )
 
@@ -85,6 +88,16 @@ class DistributedObject:
 
     def set_ai(self, ai_channel):
         self.ai = ai_channel
+
+    def  handle_field_update(self, source, dobject_id, field_id, values):
+        field = self.dclass.fields[field_id]
+        if (field.policy & (field_policies.RAM | field_policies.PERSIST)):
+            storage_id = self.storage_map[field_id]
+            self.storage[storage_id].set(values)
+        field_name = self.dclass.fields[0].name
+        method_name = 'update_' + field_name
+        if hasattr(self, method_name):
+            getattr(self, method_name)(source, *values)
 
 
 class Recipient:

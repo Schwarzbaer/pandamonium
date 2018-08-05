@@ -1,3 +1,5 @@
+from functools import partial
+
 from pandamonium.constants import (
     field_policies,
     msgtypes,
@@ -8,21 +10,45 @@ from pandamonium.dobject import (
 )
 
 
+PLAYING_FIELD_ZONE = 1
+
+
 demo_dclasses = {'auth_service': {'userpass': ((str, str),
                                                (field_policies.CLIENT_SEND |
                                                 field_policies.AI_RECEIVE))},
                  'avatar': {'move_command': ((float, float),
-                                             (field_policies.OWNER_SEND,
+                                             (field_policies.OWNER_SEND |
                                               field_policies.AI_RECEIVE)),
                             'position': ((float, float),
-                                         (field_policies.AI_SEND,
-                                          field_policies.OWNER_RECEIVE))}}
+                                         (field_policies.AI_SEND |
+                                          field_policies.OWNER_RECEIVE |
+                                          field_policies.RAM))}}
 dclasses = create_class_definitions(demo_dclasses)
 
 
 class AuthServiceAI(DistributedObject):
     def creation_hook(self):
         pass
+
+    def update_userpass(self, source, username, password):
+        if username == "user" and password == "pass":
+            # Create avatar and assign ownership
+            self.repo.create_dobject(
+                1, #"avatar",
+                [[0.0, 0.0]],
+                partial(self.avatar_created_callback, source),
+            )
+        else:
+            self.repo.send_message(
+                self.repo.channel,
+                source,
+                msgtypes.DISCONNECT_CLIENT,
+                "Because!")
+
+    def avatar_created_callback(self, client, dobject_id):
+        self.repo.add_to_zone(dobject_id, PLAYING_FIELD_ZONE)
+        self.repo.set_ai(self.repo.channel, dobject_id)
+        self.repo.set_owner(client, dobject_id)
 
 
 class AuthServiceClient(DistributedObject):
