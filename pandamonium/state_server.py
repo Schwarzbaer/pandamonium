@@ -3,8 +3,9 @@ import logging
 
 from pandamonium.base import BaseComponent
 from pandamonium.constants import channels, msgtypes
+from pandamonium.constants import field_policies as fp
 from pandamonium.dobject import DistributedObject, Recipient, Zone
-from pandamonium.util import IDGenerator, AssociativeTable
+from pandamonium.util import IDGenerator, AssociativeTable, BijectiveMap
 
 
 logger = logging.getLogger(__name__)
@@ -22,9 +23,10 @@ class SimpleStateKeeper(BaseStateKeeper):
     def __init__(self, dclasses):
         self.dclasses = dclasses
         self.state = AssociativeTable('recipients', 'zones', 'dobjects')
+        # FIXME: Recipients and zones should be BijectiveMaps as well.
         self.recipients = AssociativeTable('r_id', 'r_object')
         self.zones = AssociativeTable('z_id', 'z_object')
-        self.dobjects = AssociativeTable('d_id', 'd_object')
+        self.dobjects = BijectiveMap()
         # TODO: For the moment, we'll use a single lock to protect the whole of
         # the state; dobject existence, presence in zones, and interest. This is
         # a topic ripe for optimization, if you can do it without creating
@@ -63,9 +65,7 @@ class SimpleStateKeeper(BaseStateKeeper):
                 self.dclasses[dclass],
                 fields,
             )
-            self.dobjects.d_id.add(dobject_id)
-            self.dobjects.d_object.add(dobject)
-            self.dobjects._assoc(dobject_id, dobject)
+            self.dobjects[dobject_id] = dobject
             self.state.dobjects.add(dobject)
 
     def create_zone(self, zone_id):
@@ -89,11 +89,11 @@ class SimpleStateKeeper(BaseStateKeeper):
         )
 
     def _dobject_to_emittable(self, dobject):
-        dobject_id = next(iter(self.dobjects[dobject]))
+        dobject_id = self.dobjects.getreverse(dobject)
         return (dobject_id, dobject)
 
     def _dobject_id_to_emittable(self, dobject_id):
-        dobject = next(iter(self.dobjects[dobject_id]))
+        dobject = self.dobjects[dobject_id]
         return (dobject_id, dobject)
 
     def set_interest(self, recipient_id, zone_id):
@@ -110,7 +110,11 @@ class SimpleStateKeeper(BaseStateKeeper):
             new_dobjects = dobjects_after - dobjects_before
             emittables = [self._dobject_to_emittable(dobject)
                           for dobject in new_dobjects]
-            self.emit_create_dobject_view([recipient_id], emittables)
+        # FIXME: Emitting should happen within the lock, but in single-
+        # threaded mode, that deadlocks the application once there's an
+        # immediate reaction to the view creation that requires the lock
+        # as well.
+        self.emit_create_dobject_view([recipient_id], emittables)
         return [new_dobject_id for (new_dobject_id, _) in emittables]
 
     def unset_interest(self, recipient_id, zone_id):
@@ -128,7 +132,7 @@ class SimpleStateKeeper(BaseStateKeeper):
         if zone_id not in self.zones:
             self.create_zone(zone_id)
         with self.state_lock:
-            (dobject, ) = self.dobjects[dobject_id]
+            dobject = self.dobjects[dobject_id]
             (zone, ) = self.zones[zone_id]
             recipients_before = self._dobject_seen_by(dobject)
             self.state._assoc(dobject, zone)
@@ -142,7 +146,7 @@ class SimpleStateKeeper(BaseStateKeeper):
 
     def remove_presence(self, dobject_id, zone_id):
         with self.state_lock:
-            (dobject, ) = self.dobjects[dobject_id]
+            dobject = self.dobjects[dobject_id]
             (zone, ) = self.zones[zone_id]
             recipients_before = self._dobject_seen_by(dobject)
             self.state._dissoc(dobject, zone)
@@ -154,10 +158,26 @@ class SimpleStateKeeper(BaseStateKeeper):
         return lost_recipient_ids
 
     def set_field(self, source, dobject_id, field_id, value):
-        #with self.state_lock:
-        #    if 
-        import pdb; pdb.set_trace()
-        pass
+        with self.state_lock:
+            dobject = self.dobjects[dobject_id]
+            field = dobject.dclass.fields[field_id]
+            policy = field.policy
+            # Is the source even allowed to set this field?
+            if (policy & fp.CLIENT_SEND) or \
+               ((policy & fp.OWNER_SEND) and source == dobject.owner) or \
+               ((policy & fp.AI_SEND) and source == dobject.ai):
+                # If it's a storage field, set its value
+                if policy & (fp.RAM | fp.PERSIST):
+                    pass
+                # Emit
+                if policy & fp.CLIENT_RECEIVE:
+                    pass
+                if policy & fp.OWNER_RECEIVE:
+                    pass
+                if policy & fp.AI_RECEIVE:
+                    pass
+            else:
+                raise Exception  # FIXME: Proper exception class, plz!
 
 
 class BaseStateServer(BaseComponent):
