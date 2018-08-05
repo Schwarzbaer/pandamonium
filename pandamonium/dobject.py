@@ -72,7 +72,7 @@ class DistributedObject:
             )
 
         self.owner = None
-        self.ai_channel = None
+        self.ai = None
 
         self.creation_hook()
 
@@ -84,7 +84,7 @@ class DistributedObject:
         self.owner = owner
 
     def set_ai(self, ai_channel):
-        self.ai_channel = ai_channel
+        self.ai = ai_channel
 
 
 class Recipient:

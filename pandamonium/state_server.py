@@ -1,4 +1,5 @@
 from threading import Lock
+from queue import Queue, Empty
 import logging
 
 from pandamonium.base import BaseComponent
@@ -32,23 +33,43 @@ class SimpleStateKeeper(BaseStateKeeper):
         # a topic ripe for optimization, if you can do it without creating
         # deadlocks. Maybe do optimistic concurrency? Have a nifty planner
         # that'll schedule event processing into isolated parallelity?
-        # One aspect that should be considered (even before optimizing) is that
-        # messages should be sent with an order resembling their causality.
-        # Otherwise repositories may receive messages in orders that just don't
-        # make sense, or repositories will have to do overly complicated
-        # bookkeeping. A typical problematic example:
-        # * There's a dobject "foo" in zone 0 that clients A and B are
-        #   interested in.
-        # * Something changes the state of foo from X to Y.
-        # * The state change message reaches A, which changes the state to Z.
-        # * The change of foo to Z is broadcast to A and B.
-        # * Now the change to Y is finally broadcast to B.
-        # This is unlikely, but possible, when using network sockets, and all
-        # but guaranteed when using the internal connection. Sending messages
-        # within the time where the state lock has been acquired, though, would
-        # lead to deadlocks. So what the #### are we gonna do?
-        # One idea: Have an incrementing counter for state changes.
         self.state_lock = Lock()
+        self.emission_queue = Queue()
+
+    def _queue_message(self, *message):
+        # FIXME: Make sure that all data is copies.
+        self.emission_queue.put(message)
+
+    def _work_emission_queue(self):
+        working = True
+        while working:
+            try:
+                message = self.emission_queue.get(block=False)
+                self.message_director.create_message(*message)
+            except Empty:
+                working = False
+
+    def emit_create_dobject_view(self, recipients, dobject_maps):
+        for recipient in recipients:
+            for dobject_id, dobject in dobject_maps:
+                self._queue_message(
+                    self.individual_channel,
+                    recipient,
+                    msgtypes.CREATE_DOBJECT_VIEW,
+                    dobject_id,
+                    dobject.dclass,
+                    dobject.storage,
+                )
+
+    def emit_destroy_dobject_view(self, recipients, dobject_ids):
+        for recipient in recipients:
+            for dobject_id in dobject_ids:
+                self._queue_message(
+                    self.individual_channel,
+                    recipient,
+                    msgtypes.DESTROY_DOBJECT_VIEW,
+                    dobject_id,
+                )
 
     def create_recipient(self, recipient_id):
         with self.state_lock:
@@ -110,11 +131,8 @@ class SimpleStateKeeper(BaseStateKeeper):
             new_dobjects = dobjects_after - dobjects_before
             emittables = [self._dobject_to_emittable(dobject)
                           for dobject in new_dobjects]
-        # FIXME: Emitting should happen within the lock, but in single-
-        # threaded mode, that deadlocks the application once there's an
-        # immediate reaction to the view creation that requires the lock
-        # as well.
-        self.emit_create_dobject_view([recipient_id], emittables)
+            self.emit_create_dobject_view([recipient_id], emittables)
+        self._work_emission_queue()
         return [new_dobject_id for (new_dobject_id, _) in emittables]
 
     def unset_interest(self, recipient_id, zone_id):
@@ -126,6 +144,7 @@ class SimpleStateKeeper(BaseStateKeeper):
             dobjects_after = self._dobjects_seen(recipient)
             lost_dobjects = dobjects_before - dobjects_after
             self.emit_destroy_dobject_view([recipient_id], lost_dobjects)
+        self._work_emission_queue()
         return lost_dobject_ids
 
     def add_presence(self, dobject_id, zone_id):
@@ -142,6 +161,7 @@ class SimpleStateKeeper(BaseStateKeeper):
                                  for nr in new_recipients}
             emittable = [self._dobject_id_to_emittable(dobject_id)]
             self.emit_create_dobject_view(new_recipient_ids, emittable)
+        self._work_emission_queue()
         return new_recipient_ids
 
     def remove_presence(self, dobject_id, zone_id):
@@ -155,7 +175,36 @@ class SimpleStateKeeper(BaseStateKeeper):
             lost_recipient_ids = {next(iter(self.recipients[nr]))
                                   for nr in lost_recipients}
             self.emit_destroy_dobject_view(lost_recipient_ids, [dobject_id])
+        self._work_emission_queue()
         return lost_recipient_ids
+
+    def set_ai(self, ai_channel, dobject_id):
+        with self.state_lock:
+            self.dobjects[dobject_id].set_ai(ai_channel)
+        # self.message_director.create_message(
+        #     self.all_connections,  # FIXME: This individual StateServer's ID
+        #     ai_channel,
+        #     msgtypes.CREATE_AI_VIEW,
+        #     dobject_id,  # FIXME: Either we also need to add all state
+        #                  # information, or, better (because later updates)
+        #                  # assure that the dobject is already in the AI's
+        #                  # interest.
+        # )
+
+    def set_owner(self, owner_channel, dobject_id):
+        with self.state_lock:
+            self.dobjects[dobject_id].set_owner(owner_channel)
+        # with self.state_lock:
+        #     # TODO: Destroy owner view if another owner was set.
+        #     self.dobjects[dobject_id].set_owner(owner_channel)
+        # # TODO: Check whether dobject is even visible to client
+        # self.message_director.create_message(
+        #     self.all_connections,  # FIXME: This individual StateServer's ID
+        #     owner_channel,
+        #     msgtypes.CREATE_OwNER_VIEW,
+        #     dobject_id,
+        # )
+
 
     def set_field(self, source, dobject_id, field_id, value):
         with self.state_lock:
@@ -168,16 +217,34 @@ class SimpleStateKeeper(BaseStateKeeper):
                ((policy & fp.AI_SEND) and source == dobject.ai):
                 # If it's a storage field, set its value
                 if policy & (fp.RAM | fp.PERSIST):
-                    pass
+                    pass  # FIXME
                 # Emit
                 if policy & fp.CLIENT_RECEIVE:
-                    pass
-                if policy & fp.OWNER_RECEIVE:
-                    pass
-                if policy & fp.AI_RECEIVE:
-                    pass
+                    for recipient in self._dobject_seen_by(dobject):
+                        self._queue_message(
+                            self.individual_channel,
+                            recipient,
+                            msgtypes.FIELD_UPDATE,
+                            # FIXME
+                        )
+                elif policy & fp.OWNER_RECEIVE:
+                    self._queue_message(
+                        self.individual_channel,
+                        dobject.owner,
+                        msgtypes.FIELD_UPDATE,
+                        # FIXME
+                    )
+                elif policy & fp.AI_RECEIVE:
+                    self._queue_message(
+                        self.individual_channel,
+                        dobject.ai,
+                        msgtypes.FIELD_UPDATE,
+                        # FIXME
+                    )
+                # NOTE: else? I mean, there MUST be a sending policy?
             else:
                 raise Exception  # FIXME: Proper exception class, plz!
+        self._work_emission_queue()
 
 
 class BaseStateServer(BaseComponent):
@@ -250,28 +317,6 @@ class BaseStateServer(BaseComponent):
             token,
         )
 
-    def emit_create_dobject_view(self, recipients, dobject_maps):
-        for recipient in recipients:
-            for dobject_id, dobject in dobject_maps:
-                self.message_director.create_message(
-                    self.individual_channel,
-                    recipient,
-                    msgtypes.CREATE_DOBJECT_VIEW,
-                    dobject_id,
-                    dobject.dclass,
-                    dobject.storage,
-                )
-
-    def emit_destroy_dobject_view(self, recipients, dobject_ids):
-        for recipient in recipients:
-            for dobject_id in dobject_ids:
-                self.message_director.create_message(
-                    self.individual_channel,
-                    recipient,
-                    msgtypes.CREATE_DOBJECT_VIEW,
-                    dobject_id,
-                )
-
     def handle_set_interest(self, recipient, zone):
         logger.debug("StateServer sets interest for {} in {}".format(
             recipient,
@@ -295,31 +340,10 @@ class BaseStateServer(BaseComponent):
         lost_recipients = self.remove_presence(dobject_id, zone)
 
     def handle_set_ai(self, ai_channel, dobject_id):
-        pass
-        # with self.state_lock:
-        #     self.dobjects[dobject_id].set_ai(ai_channel)
-        # self.message_director.create_message(
-        #     self.all_connections,  # FIXME: This individual StateServer's ID
-        #     ai_channel,
-        #     msgtypes.CREATE_AI_VIEW,
-        #     dobject_id,  # FIXME: Either we also need to add all state
-        #                  # information, or, better (because later updates)
-        #                  # assure that the dobject is already in the AI's
-        #                  # interest.
-        # )
+        self.set_ai(ai_channel, dobject_id)
 
     def handle_set_owner(self, owner_channel, dobject_id):
-        pass
-        # with self.state_lock:
-        #     # TODO: Destroy owner view if another owner was set.
-        #     self.dobjects[dobject_id].set_owner(owner_channel)
-        # # TODO: Check whether dobject is even visible to client
-        # self.message_director.create_message(
-        #     self.all_connections,  # FIXME: This individual StateServer's ID
-        #     owner_channel,
-        #     msgtypes.CREATE_OwNER_VIEW,
-        #     dobject_id,
-        # )
+        self.set_owner(owner_channel, dobject_id)
 
     def handle_set_field(self, source, dobject_id, field_id, value):
         logger.debug("{} sets {}'s field {} to {}".format(

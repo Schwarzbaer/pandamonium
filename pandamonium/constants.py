@@ -73,3 +73,5 @@ class msgtypes:
     CREATE_OWNER_VIEW = MsgType(2022, "CREATE_OWNER_VIEW")
     # repo -> state_server
     SET_FIELD = MsgType(2030, "SET_FIELD")
+    # state server -> repo
+    FIELD_UPDATE = MsgType(2031, "FIELD_UPDATE")

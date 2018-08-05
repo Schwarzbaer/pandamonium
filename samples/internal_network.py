@@ -119,7 +119,7 @@ class DemoAIRepository(AIRepository, InternalAIConnector):
               "dobject \"{}\"".format(self.channel, dobject_id))
         # TODO : Make dobject present in FIRST_CONTACT_ZONE
         self.add_to_zone(dobject_id, FIRST_CONTACT_ZONE)
-        #self.set_ai(self.channel, dobject_id)
+        self.set_ai(self.channel, dobject_id)
 
 
 ai_repository = DemoAIRepository()
