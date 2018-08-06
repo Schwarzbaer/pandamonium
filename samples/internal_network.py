@@ -30,7 +30,10 @@
 #   client disconnects.
 
 
+import sys
 import logging
+
+from direct.showbase.ShowBase import ShowBase
 
 from pandamonium.state_server import StateServer
 from pandamonium.core import (
@@ -134,11 +137,30 @@ class DemoClientRepository(ClientRepository, InternalClientConnector):
     views = view_classes_client
 
 
-client_repository = DemoClientRepository()
-client_repository.connect(client_agent)
+class DemoGame(ShowBase):
+    def __init__(self):
+        super().__init__()
+        self.disable_mouse()
+        self.setup_map()
+        self.accept("c", self.connect)
+        self.accept("escape", sys.exit)
+
+    def setup_map(self):
+        base.camera.set_pos(0, -50, 50)
+        base.camera.look_at(0, 0, 0)
+        pancake = base.loader.load_model("models/environment")
+        pancake.reparent_to(base.render)
+        pancake.set_pos(-8, 42, 0)
+        pancake.set_scale(0.25)
+
+    def connect(self):
+        # FIXME: unbind "c"
+        self.client_repository = DemoClientRepository()
+        self.client_repository.connect(client_agent)
 
 
-
+demo_game = DemoGame()
+demo_game.run()
 
 
 ## client_repository.disconnect()

@@ -193,17 +193,16 @@ class SimpleStateKeeper(BaseStateKeeper):
 
     def set_owner(self, owner_channel, dobject_id):
         with self.state_lock:
+            # TODO: Destroy owner view if another owner was set.
+            # TODO: Check whether dobject is even visible to client
             self.dobjects[dobject_id].set_owner(owner_channel)
-        # with self.state_lock:
-        #     # TODO: Destroy owner view if another owner was set.
-        #     self.dobjects[dobject_id].set_owner(owner_channel)
-        # # TODO: Check whether dobject is even visible to client
-        # self.message_director.create_message(
-        #     self.all_connections,  # FIXME: This individual StateServer's ID
-        #     owner_channel,
-        #     msgtypes.CREATE_OwNER_VIEW,
-        #     dobject_id,
-        # )
+            self._queue_message(
+                self.all_connections,  # FIXME: This individual StateServer's ID
+                owner_channel,
+                msgtypes.BECOME_OWNER,
+                dobject_id,
+            )
+        self._work_emission_queue()
 
 
     def set_field(self, source, dobject_id, field_id, value):

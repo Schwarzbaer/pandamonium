@@ -40,6 +40,9 @@ class ClientRepository(BaseRepository):
             dclass = args[1]
             fields = args[2]
             self.handle_create_dobject_view(dobject_id, dclass, fields)
+        elif message_type == msgtypes.BECOME_OWNER:
+            dobject_id = args[0]
+            self.handle_become_owner(dobject_id)
         else:
             # FIXME: Better to log it and drop it on the floor?
             raise NotImplementedError
@@ -58,6 +61,10 @@ class ClientRepository(BaseRepository):
         logger.info("ClientRepository creates view for "
               "dobject \"{}\"".format(dobject_id))
         super().handle_create_dobject_view(dobject_id, dclass, fields)
+
+    def handle_become_owner(self, dobject_id):
+        dobject = self.dobjects[dobject_id]
+        dobject.become_owner()
 
 
 class AIRepository(BaseRepository):

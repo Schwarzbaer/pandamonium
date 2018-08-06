@@ -1,5 +1,8 @@
 from functools import partial
 
+from panda3d.core import NodePath
+from direct.actor.Actor import Actor
+
 from pandamonium.constants import (
     field_policies,
     msgtypes,
@@ -48,6 +51,7 @@ class AuthServiceAI(DistributedObject):
     def avatar_created_callback(self, client, dobject_id):
         self.repo.add_to_zone(dobject_id, PLAYING_FIELD_ZONE)
         self.repo.set_ai(self.repo.channel, dobject_id)
+        self.repo.set_interest(client, PLAYING_FIELD_ZONE)
         self.repo.set_owner(client, dobject_id)
 
 
@@ -69,7 +73,22 @@ class AvatarAI(DistributedObject):
 
 
 class AvatarClient(DistributedObject):
-    pass
+    def creation_hook(self):
+        self.avatar = NodePath("Player Avatar")
+        self.avatar.reparent_to(base.render)
+        # TODO: set_pos
+        self.actor = Actor("models/panda-model",
+                           {"walk": "models/panda-walk4"})
+        self.actor.reparent_to(self.avatar)
+        self.actor.set_scale(0.002)
+        self.actor.set_h(180)
+
+    def become_owner(self):
+        super().become_owner()
+        base.camera.reparent_to(self.avatar)
+        base.camera.set_pos(0, -5, 1.6)
+        base.camera.look_at(0, 0, 1.2)
+        # TODO: Set camera on model and map controls
 
 
 view_classes_ai = {'auth_service': AuthServiceAI,

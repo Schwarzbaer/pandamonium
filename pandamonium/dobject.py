@@ -75,6 +75,7 @@ class DistributedObject:
             )
 
         self.owner = None
+        self.is_owner = False
         self.ai = None
 
         self.creation_hook()
@@ -86,10 +87,13 @@ class DistributedObject:
     def set_owner(self, owner):
         self.owner = owner
 
+    def become_owner(self):
+        self.is_owner = True
+
     def set_ai(self, ai_channel):
         self.ai = ai_channel
 
-    def  handle_field_update(self, source, dobject_id, field_id, values):
+    def handle_field_update(self, source, dobject_id, field_id, values):
         field = self.dclass.fields[field_id]
         if (field.policy & (field_policies.RAM | field_policies.PERSIST)):
             storage_id = self.storage_map[field_id]
