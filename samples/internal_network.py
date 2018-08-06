@@ -136,27 +136,31 @@ ai_repository.connect(ai_agent)
 class DemoClientRepository(ClientRepository, InternalClientConnector):
     views = view_classes_client
 
-
-class DemoGame(ShowBase):
-    def __init__(self):
-        super().__init__()
-        self.disable_mouse()
-        self.setup_map()
-        self.accept("c", self.connect)
-        self.accept("escape", sys.exit)
-
-    def setup_map(self):
-        base.camera.set_pos(0, -50, 50)
+    def handle_connected(self):
+        base.camera.set_pos(0, -250, 250)
         base.camera.look_at(0, 0, 0)
         pancake = base.loader.load_model("models/environment")
         pancake.reparent_to(base.render)
         pancake.set_pos(-8, 42, 0)
         pancake.set_scale(0.25)
 
+
+class DemoGame(ShowBase):
+    def __init__(self):
+        super().__init__()
+        self.disable_mouse()
+        self.accept("c", self.connect)
+        self.accept("a", self.auth)
+        self.accept("escape", sys.exit)
+        self.auth_service = None
+
     def connect(self):
-        # FIXME: unbind "c"
+        self.ignore("c")
         self.client_repository = DemoClientRepository()
         self.client_repository.connect(client_agent)
+
+    def auth(self):
+        pass
 
 
 demo_game = DemoGame()

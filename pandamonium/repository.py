@@ -31,7 +31,7 @@ class ClientRepository(BaseRepository):
             message_type
         ))
         if message_type == msgtypes.CONNECTED:
-            self.connected()
+            self.handle_connected()
         elif message_type == msgtypes.DISCONNECTED:
             reason = args[0]
             self.handle_disconnected(reason)

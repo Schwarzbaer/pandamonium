@@ -1,6 +1,8 @@
 from functools import partial
 
 from panda3d.core import NodePath
+
+from direct.showbase.DirectObject import DirectObject
 from direct.actor.Actor import Actor
 
 from pandamonium.constants import (
@@ -55,11 +57,12 @@ class AuthServiceAI(DistributedObject):
         self.repo.set_owner(client, dobject_id)
 
 
-class AuthServiceClient(DistributedObject):
+class AuthServiceClient(DistributedObject, DirectObject):
     def creation_hook(self):
-        self.send_auth("user", "pass")
+        self.accept("a", self.send_auth, ["user", "pass"])
 
     def send_auth(self, username, password):
+        self.ignore("a")
         self.repo.send_message(
             msgtypes.SET_FIELD,
             self.dobject_id,
@@ -88,7 +91,7 @@ class AvatarClient(DistributedObject):
         base.camera.reparent_to(self.avatar)
         base.camera.set_pos(0, -5, 1.6)
         base.camera.look_at(0, 0, 1.2)
-        # TODO: Set camera on model and map controls
+        # TODO: map controls
 
 
 view_classes_ai = {'auth_service': AuthServiceAI,
