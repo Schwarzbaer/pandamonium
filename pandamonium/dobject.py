@@ -99,6 +99,37 @@ class AIView:
     def handle_field_update(self, source, field_id, values):
         self.receiver_methods[field_id](source, *values)
 
+    def disconnect_client(self, client_id, reason):
+        self.repository.disconnect_client(client_id, reason)
+
+    def create_dobject(self, dclass_id, fields, callback=None):
+        if callback is None:
+            self.repository.create_dobject(
+                dclass_id,
+                fields,
+            )
+        else:
+            self.repository.create_dobject(
+                dclass_id,
+                fields,
+                callback,
+            )
+
+    def add_to_zone(self, dobject_id, zone_id):
+        self.repository.add_to_zone(dobject_id, zone_id)
+
+    def set_interest(self, client_id, zone_id):
+        self.repository.set_interest(client_id, zone_id)
+
+    def set_owner(self, client_id, dobject_id):
+        self.repository.set_owner(client_id, dobject_id)
+
+    def set_ai(self, ai_channel, dobject_id):
+        self.repository.set_ai(ai_channel, dobject_id)
+
+    def set_self_as_ai(self, dobject_id):
+        self.set_ai(self.repository.channel, dobject_id)
+
 
 class ClientView:
     def _dfield_sending_field_sender(self, dobject_id, field_id, f):

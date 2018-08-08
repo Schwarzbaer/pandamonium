@@ -84,24 +84,22 @@ class AuthServiceAIView(AIView, AuthService):
         if username == "user" and password == "pass":
             # Create avatar and assign ownership
             # FIXME: Make these methods of Dobject
-            self.repository.create_dobject(
+            self.create_dobject(
                 1, #"avatar",
                 [[0.0, 0.0]],
                 partial(self.avatar_created_callback, source),
             )
         else:
-            self.repository.send_message(
-                self.repository.channel,
+            self.disconnect_client(
                 source,
-                msgtypes.DISCONNECT_CLIENT,
                 "Because!",
             )
 
     def avatar_created_callback(self, client_id, dobject_id):
-        self.repository.add_to_zone(dobject_id, PLAYING_FIELD_ZONE)
-        self.repository.set_ai(self.repository.channel, dobject_id)
-        self.repository.set_interest(client_id, PLAYING_FIELD_ZONE)
-        self.repository.set_owner(client_id, dobject_id)
+        self.add_to_zone(dobject_id, PLAYING_FIELD_ZONE)
+        self.set_self_as_ai(dobject_id)
+        self.set_interest(client_id, PLAYING_FIELD_ZONE)
+        self.set_owner(client_id, dobject_id)
 
 
 class AuthServiceClientView(ClientView, AuthService, DirectObject):
