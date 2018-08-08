@@ -223,7 +223,6 @@ class DemoAIRepository(AIRepository, InternalAIConnector):
 
     def handle_client_connected(self, client_id):
         super().handle_client_connected(client_id)
-        # self.disconnect_client(client_id, "For demonstration purposes.")
         self.set_interest(client_id, FIRST_CONTACT_ZONE)
 
     def create_dobject(self, dclass_id, fields, callback=None):
@@ -244,7 +243,6 @@ class DemoAIRepository(AIRepository, InternalAIConnector):
     def demo_dobject_creation_callback(self, dobject_id):
         print("AIRepository {} dobject creation callback executed for "
               "dobject \"{}\"".format(self.channel, dobject_id))
-        # TODO : Make dobject present in FIRST_CONTACT_ZONE
         self.add_to_zone(dobject_id, FIRST_CONTACT_ZONE)
         self.set_ai(self.channel, dobject_id)
 
@@ -256,10 +254,10 @@ class DemoClientRepository(ClientRepository, InternalClientConnector):
     def handle_connected(self):
         base.camera.set_pos(0, -250, 250)
         base.camera.look_at(0, 0, 0)
-        pancake = base.loader.load_model("models/environment")
-        pancake.reparent_to(base.render)
-        pancake.set_pos(-8, 42, 0)
-        pancake.set_scale(0.25)
+        environment = base.loader.load_model("models/environment")
+        environment.reparent_to(base.render)
+        environment.set_pos(-8, 42, 0)
+        environment.set_scale(0.25)
 
 
 class DemoGame(ShowBase):
@@ -283,17 +281,3 @@ class DemoGame(ShowBase):
 
 demo_game = DemoGame()
 demo_game.run()
-
-
-## client_repository.disconnect()
-print("-----------------------------------------------------------------------")
-
-
-# class Demo(ShowBase):
-#     def __init__(self):
-#         super().__init__()
-#         self.accept("escape", sys.exit)
-# 
-# 
-# demo = Demo()
-# demo.run()
