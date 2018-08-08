@@ -42,6 +42,11 @@ class ClientRepository(BaseRepository):
         elif message_type == msgtypes.BECOME_OWNER:
             dobject_id = args[0]
             self.handle_become_owner(dobject_id)
+        elif message_type == msgtypes.FIELD_UPDATE:
+            dobject_id = args[0]
+            field_id = args[1]
+            values = args[2]
+            self.handle_field_update(dobject_id, field_id, values)
         else:
             # FIXME: Better to log it and drop it on the floor?
             raise NotImplementedError
@@ -64,6 +69,10 @@ class ClientRepository(BaseRepository):
     def handle_become_owner(self, dobject_id):
         dobject = self.dobjects[dobject_id]
         dobject.become_owner()
+
+    def handle_field_update(self, dobject_id, field_id, values):
+        dobject = self.dobjects[dobject_id]
+        dobject.handle_field_update(field_id, values)
 
 
 class AIRepository(BaseRepository):

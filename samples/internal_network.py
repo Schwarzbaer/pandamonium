@@ -117,13 +117,26 @@ class Avatar(DClass):
     dfield_position = ((float, float), fp.AI_SEND|fp.OWNER_RECEIVE|fp.RAM)
 
 
-class AvatarAIView(Avatar, AIView):
+class AvatarAIView(AIView, Avatar):
     def creation_hook(self):
-        # self.repository.avatars.add(self)
-        pass
+        self.repository.avatars.add(self)
+        self.movement = [0.0, 0.0]
+        self.position = [0.0, 0.0] # FIXME: From field value
 
     def on_move_command(self, source, forward, right):
-        print(source, forward, right)
+        self.movement = [forward, right]
+
+    def do_position(self, x, y):
+        return (x, y)
+
+    def update_position(self, dt):
+        speed = 3.0
+        if self.movement != [0.0, 0.0]:
+            self.position = [
+                self.position[0] + self.movement[1] * dt * speed,
+                self.position[1] + self.movement[0] * dt * speed,
+            ]
+            self.do_position(*self.position)
 
 
 class AvatarClientView(ClientView, Avatar, DirectObject):
@@ -150,7 +163,6 @@ class AvatarClientView(ClientView, Avatar, DirectObject):
         self.accept("arrow_left-up", self.do_move_command, [0.0, 1.0])
         self.accept("arrow_right", self.do_move_command, [0.0, 1.0])
         self.accept("arrow_right-up", self.do_move_command, [0.0, -1.0])
-        # TODO: map controls
 
     def do_move_command(self, forward, right):
         self.movement[0] = self.movement[0] + forward
@@ -207,8 +219,9 @@ class DemoAIRepository(AIRepository, InternalAIConnector):
         super().__init__()
 
     def update_avatars(self, task):
+        dt = globalClock.get_dt()
         for avatar in self.avatars:
-            print(".")
+            avatar.update_position(dt)
         return task.cont
 
     def handle_channel_assigned(self, channel):

@@ -52,12 +52,12 @@ class AIView:
         def inner(*args):
             values = f(*args)
             self.repository.send_message(
-                self.repo.ai_channel,
+                self.repository.channel,
                 channels.ALL_STATE_SERVERS,
                 msgtypes.SET_FIELD,
                 self.dobject_id,
                 field_id,
-                args,
+                values,
             )
         return inner
 
@@ -77,7 +77,7 @@ class AIView:
                     field_id,
                     getattr(self, sender_name),
                 )
-                setattr(self, method_name, wrapper)
+                setattr(self,  sender_name, sender_wrapper)
                 if hasattr(self, receiver_name):
                     raise Exception("Method {} should not be set on a field "
                                     "with client-side sender policy"
@@ -139,7 +139,7 @@ class ClientView:
                 msgtypes.SET_FIELD,
                 self.dobject_id,
                 field_id,
-                args,
+                values,
             )
         return inner
 
