@@ -4,7 +4,6 @@ import logging
 from pandamonium.base import BaseComponent
 from pandamonium.state_server import StateServer
 from pandamonium.constants import channels, msgtypes
-from pandamonium.dobject import DistributedObject
 from pandamonium.util import IDGenerator
 
 

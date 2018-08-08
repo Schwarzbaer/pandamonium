@@ -32,39 +32,148 @@
 
 import sys
 import logging
+from functools import partial
 
+from panda3d.core import NodePath
+from direct.showbase.DirectObject import DirectObject
+from direct.actor.Actor import Actor
 from direct.showbase.ShowBase import ShowBase
 
-from pandamonium.state_server import StateServer
+from pandamonium.constants import (
+    msgtypes,
+)
+from pandamonium.constants import field_policies as fp
+from pandamonium.util import IDGenerator
 from pandamonium.core import (
     ClientAgent,
     AIAgent,
     MessageDirector,
 )
+from pandamonium.state_server import StateServer
 from pandamonium.sockets import (
     InternalAIListener,
     InternalClientListener,
     InternalAIConnector,
     InternalClientConnector,
 )
-from pandamonium.repository import ClientRepository, AIRepository
-
-from samples.simple_dclasses import (
-    dclasses,
-    view_classes_ai,
-    view_classes_client,
+from pandamonium.dobject import (
+    DClass,
+    AIView,
+    ClientView,
 )
+from pandamonium.repository import ClientRepository, AIRepository
 
 
 # logging.basicConfig(level=logging.DEBUG)
 logging.basicConfig(level=logging.INFO)
 
 
-# {dclass_id: {field_id: (type, keywords)}}
-# type = ((type_1, type2, ...), KEYWORDS)
-
-
 FIRST_CONTACT_ZONE = 0
+PLAYING_FIELD_ZONE = 1
+
+
+# Distributed Classes and their Views
+
+
+class AuthService(DClass):
+    dfield_userpass = ((str, str), fp.CLIENT_SEND|fp.AI_RECEIVE)
+
+
+class AuthServiceAIView(AIView, AuthService):
+    def on_userpass(self, source, username, password):
+        if username == "user" and password == "pass":
+            # Create avatar and assign ownership
+            # FIXME: Make these methods of Dobject
+            self.repository.create_dobject(
+                1, #"avatar",
+                [[0.0, 0.0]],
+                partial(self.avatar_created_callback, source),
+            )
+        else:
+            self.repository.send_message(
+                self.repository.channel,
+                source,
+                msgtypes.DISCONNECT_CLIENT,
+                "Because!",
+            )
+
+    def avatar_created_callback(self, client_id, dobject_id):
+        self.repository.add_to_zone(dobject_id, PLAYING_FIELD_ZONE)
+        self.repository.set_ai(self.repository.channel, dobject_id)
+        self.repository.set_interest(client_id, PLAYING_FIELD_ZONE)
+        self.repository.set_owner(client_id, dobject_id)
+
+
+class AuthServiceClientView(ClientView, AuthService, DirectObject):
+    def creation_hook(self):
+        #self.accept("a", self.do_userpass, ["user", "pass"])
+        self.do_userpass("user", "pass")
+
+    def do_userpass(self, username, password):
+        self.ignore("a")
+        return (username, password)
+
+
+class Avatar(DClass):
+    dfield_move_command = ((float, float), fp.OWNER_SEND|fp.AI_RECEIVE)
+    dfield_position = ((float, float), fp.AI_SEND|fp.OWNER_RECEIVE|fp.RAM)
+
+
+class AvatarAIView(Avatar, AIView):
+    def creation_hook(self):
+        # self.repository.avatars.add(self)
+        pass
+
+    def on_move_command(self, source, forward, right):
+        print(source, forward, right)
+
+
+class AvatarClientView(ClientView, Avatar, DirectObject):
+    def creation_hook(self):
+        self.avatar = NodePath("Player Avatar")
+        self.avatar.reparent_to(base.render)
+        self.actor = Actor("models/panda-model",
+                           {"walk": "models/panda-walk4"})
+        self.actor.reparent_to(self.avatar)
+        self.actor.set_scale(0.002)
+        self.actor.set_h(180)
+
+    def become_owner(self):
+        super().become_owner()
+        base.camera.reparent_to(self.avatar)
+        base.camera.set_pos(0, -5, 1.6)
+        base.camera.look_at(0, 0, 1.2)
+        self.movement = [0.0, 0.0]
+        self.accept("arrow_up", self.do_move_command, [1.0, 0.0])
+        self.accept("arrow_up-up", self.do_move_command, [-1.0, 0.0])
+        self.accept("arrow_down", self.do_move_command, [-1.0, 0.0])
+        self.accept("arrow_down-up", self.do_move_command, [1.0, 0.0])
+        self.accept("arrow_left", self.do_move_command, [0.0, -1.0])
+        self.accept("arrow_left-up", self.do_move_command, [0.0, 1.0])
+        self.accept("arrow_right", self.do_move_command, [0.0, 1.0])
+        self.accept("arrow_right-up", self.do_move_command, [0.0, -1.0])
+        # TODO: map controls
+
+    def do_move_command(self, forward, right):
+        self.movement[0] = self.movement[0] + forward
+        self.movement[1] = self.movement[1] + right
+        return tuple(self.movement)
+
+    def on_position(self, x, y):
+        self.avatar.set_pos(x, y, 0)
+
+
+# This is merely needed for sorting to derive class IDs, and should hopefully
+# vanish in the future. FIXME: Also, not all dclasses may have client views.
+dclasses = {'auth_service': AuthService,
+            'avatar': Avatar}
+view_classes_ai = {'auth_service': AuthServiceAIView,
+                   'avatar': AvatarAIView}
+view_classes_client = {'auth_service': AuthServiceClientView,
+                       'avatar': AvatarClientView}
+
+
+# Server
 
 
 class DemoAIAgent(AIAgent, InternalAIListener):
@@ -85,16 +194,29 @@ message_director = MessageDirector(
 )
 
 
+# Repositories
+
+
 class DemoAIRepository(AIRepository, InternalAIConnector):
-    views = view_classes_ai
+    views = [view_classes_ai[view_name]
+             for view_name in sorted(view_classes_ai)]
 
     def __init__(self):
         self.token_callbacks = {}
+        self.token_gen = IDGenerator((1234,5678))
+        self.avatars = set()
+        base.taskMgr.add(self.update_avatars, "Update avatars")
         super().__init__()
+
+    def update_avatars(self, task):
+        for avatar in self.avatars:
+            print(".")
+        return task.cont
 
     def handle_channel_assigned(self, channel):
         super().handle_channel_assigned(channel)
         self.set_interest(self.channel, FIRST_CONTACT_ZONE)
+        self.set_interest(self.channel, PLAYING_FIELD_ZONE)
         self.create_dobject(
             0, #"auth_service",
             [],
@@ -109,7 +231,7 @@ class DemoAIRepository(AIRepository, InternalAIConnector):
     def create_dobject(self, dclass_id, fields, callback=None):
         # FIXME: Resolve dclass_id from name
         if callback is not None:
-            token = "token" # FIXME: This should *really* be an incremental ID.
+            token = self.token_gen.get_new()
             self.token_callbacks[token] = callback
             super().create_dobject(dclass_id, fields, token)
         else:
@@ -129,12 +251,9 @@ class DemoAIRepository(AIRepository, InternalAIConnector):
         self.set_ai(self.channel, dobject_id)
 
 
-ai_repository = DemoAIRepository()
-ai_repository.connect(ai_agent)
-
-
 class DemoClientRepository(ClientRepository, InternalClientConnector):
-    views = view_classes_client
+    views = [view_classes_client[view_name]
+             for view_name in sorted(view_classes_client)]
 
     def handle_connected(self):
         base.camera.set_pos(0, -250, 250)
@@ -149,18 +268,19 @@ class DemoGame(ShowBase):
     def __init__(self):
         super().__init__()
         self.disable_mouse()
-        self.accept("c", self.connect)
-        self.accept("a", self.auth)
+        self.ai_repository = DemoAIRepository()
+        self.ai_repository.connect(ai_agent)
+        # self.accept("c", self.connect)
+        # TODO: Text on screen "Press c to connect"
         self.accept("escape", sys.exit)
         self.auth_service = None
+        self.connect()
 
     def connect(self):
         self.ignore("c")
+        print("Connecting")
         self.client_repository = DemoClientRepository()
         self.client_repository.connect(client_agent)
-
-    def auth(self):
-        pass
 
 
 demo_game = DemoGame()

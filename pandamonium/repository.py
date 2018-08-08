@@ -2,7 +2,6 @@ import socket
 import logging
 
 from pandamonium.constants import channels, msgtypes
-from pandamonium.dobject import DistributedObject
 
 
 logger = logging.getLogger(__name__)
@@ -16,12 +15,12 @@ class BaseRepository:
         """Message handler: Network has acknowledged our connection."""
         pass
 
-    def handle_create_dobject_view(self, dobject_id, dclass, fields):
-        self.dobjects[dobject_id] = self.views[dclass.name](
+    def handle_create_dobject_view(self, dobject_id, dclass_id, fields):
+        dclass = self.views[dclass_id]
+        self.dobjects[dobject_id] = dclass(
+            self,
             dobject_id,
-            dclass,
             fields,
-            repo=self,
         )
 
 class ClientRepository(BaseRepository):
@@ -223,4 +222,4 @@ class AIRepository(BaseRepository):
 
     def handle_field_update(self, source, dobject_id, field_id, values):
         dobject = self.dobjects[dobject_id]
-        dobject.handle_field_update(source, dobject_id, field_id, values)
+        dobject.handle_field_update(source, field_id, values)

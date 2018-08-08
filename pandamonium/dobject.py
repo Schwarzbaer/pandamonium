@@ -1,107 +1,13 @@
 import logging
 
-from pandamonium.constants import field_policies
-
-
-# TODO: Think about whether relevant optimization is achieved when the dicts in
-# DCD and DC are replaced with lists.
+from pandamonium.constants import (
+    msgtypes,
+    channels,
+)
+from pandamonium.constants import field_policies as fp
 
 
 logger = logging.getLogger(__name__)
-
-
-def create_class_definitions(manifest):
-    # Sort classes alphabetically by name
-    return {d_id: DistributedClass(d_name, manifest[d_name])
-            for d_id, d_name in enumerate(sorted(manifest))}
-
-
-class DistributedClass:
-    def __init__(self, dclass_name, dclass_def):
-        self.name = dclass_name
-        self.fields = [DistributedField(f_name, dclass_def[f_name])
-                       for f_name in sorted(dclass_def)]
-        self.field_id_by_name = {field.name: field_id
-                                 for field_id, field in enumerate(self.fields)}
-
-    def __repr__(self):
-        return "<dclass '{}'>".format(self.name)
-
-
-class DistributedField:
-    def __init__(self, field_name, field_def):
-        self.name = field_name
-        types, policy = field_def
-        self.types = types
-        self.policy = policy
-
-
-class FieldStorage:
-    def __init__(self, types, policy, values):
-        self.types = types
-        self.policy = policy
-        self.values = values  # FIXME: Number- and typecheck given values!
-
-    def set(self, values):
-        self.values = values
-
-
-class DistributedObject:
-    def __init__(self, dobject_id, dclass, fields, repo=None):
-        logger.info("Creating dobject {} (class {}) with fields: {}".format(
-            dobject_id,
-            dclass,
-            fields,
-        ))
-        self.dobject_id = dobject_id
-        self.dclass = dclass
-        self.repo = repo
-
-        # We only store a subset of the values, based on the persistence policy.
-        # So we need a map of field_id -> storage_index
-        self.storage_map = [field_id
-                            for field_id, field in enumerate(self.dclass.fields)
-                            if field.policy & (field_policies.RAM |
-                                               field_policies.PERSIST)]
-        if len(fields) != len(self.storage_map):
-            raise ValueError
-        self.storage = [None for storage_id, value in enumerate(fields)]
-        for storage_id, values in enumerate(fields):
-            field_id = self.storage_map[storage_id]
-            self.storage[storage_id] = FieldStorage(
-                self.dclass.fields[field_id].types,
-                self.dclass.fields[field_id].policy,
-                values,
-            )
-
-        self.owner = None
-        self.is_owner = False
-        self.ai = None
-
-        self.creation_hook()
-
-    def creation_hook(self):
-        """Overwrite this to do things when a dobject view has been created."""
-        pass
-
-    def set_owner(self, owner):
-        self.owner = owner
-
-    def become_owner(self):
-        self.is_owner = True
-
-    def set_ai(self, ai_channel):
-        self.ai = ai_channel
-
-    def handle_field_update(self, source, dobject_id, field_id, values):
-        field = self.dclass.fields[field_id]
-        if (field.policy & (field_policies.RAM | field_policies.PERSIST)):
-            storage_id = self.storage_map[field_id]
-            self.storage[storage_id].set(values)
-        field_name = self.dclass.fields[0].name
-        method_name = 'update_' + field_name
-        if hasattr(self, method_name):
-            getattr(self, method_name)(source, *values)
 
 
 class Recipient:
@@ -112,3 +18,136 @@ class Recipient:
 class Zone:
     def __init__(self, zone_id):
         self.zone_id = zone_id
+
+
+class DClass:
+    def __init__(self, dobject_id, fields, state_server=None):
+        self.dobject_id = dobject_id
+        self.state_server = state_server
+        attr_names = sorted([field for field in dir(self)
+                              if field.startswith('dfield_')])
+        dfields = []
+        for field_id, attr_name in enumerate(attr_names):
+            field_name = attr_name.partition('dfield_')[2]
+            field_attr = getattr(self, attr_name)
+            field_type = field_attr[0]
+            field_policy = field_attr[1]
+            dfields.append((field_name, field_type, field_policy))
+        self._dfields = dfields
+        # TODO: set initial field values
+        self.storage = fields
+
+        self.owner = None
+        self.ai = None
+
+    def set_owner(self, owner):
+        self.owner = owner
+
+    def set_ai(self, ai_channel):
+        self.ai = ai_channel
+
+
+class AIView:
+    def _dfield_sending_field_sender(self, dobject_id, field_id, f):
+        def inner(*args):
+            values = f(*args)
+            self.repository.send_message(
+                self.repo.ai_channel,
+                channels.ALL_STATE_SERVERS,
+                msgtypes.SET_FIELD,
+                self.dobject_id,
+                field_id,
+                args,
+            )
+        return inner
+
+    # FIXME: Copypasted from ClientView
+    def __init__(self, repository, dobject_id, fields):
+        self.repository = repository
+        super().__init__(dobject_id, fields)
+        self.receiver_methods = [None] * len(self._dfields)
+        for field_id, (name, _, policy) in enumerate(self._dfields):
+            sender_name = 'do_' + name
+            receiver_name = 'on_' + name
+            if policy & fp.AI_SEND:
+                if not hasattr(self, sender_name):
+                    raise Exception("Method {} is missing".format(sender_name))
+                sender_wrapper = self._dfield_sending_field_sender(
+                    dobject_id,
+                    field_id,
+                    getattr(self, sender_name),
+                )
+                setattr(self, method_name, wrapper)
+                if hasattr(self, receiver_name):
+                    raise Exception("Method {} should not be set on a field "
+                                    "with client-side sender policy"
+                                    "".format(receiver_name))
+            elif policy & fp.AI_RECEIVE:
+                if hasattr(self, sender_name):
+                    raise Exception("Method {} should not be set on a field "
+                                    "with client-side receiver policy"
+                                    "".format(sender_name))
+                if not hasattr(self, receiver_name):
+                    raise Exception("Method {} is missing"
+                                    "".format(receiver_name))
+                self.receiver_methods[field_id] = getattr(self, receiver_name)
+        self.creation_hook()
+
+    def creation_hook(self):
+        pass
+
+    def handle_field_update(self, source, field_id, values):
+        self.receiver_methods[field_id](source, *values)
+
+
+class ClientView:
+    def _dfield_sending_field_sender(self, dobject_id, field_id, f):
+        def inner(*args):
+            values = f(*args)
+            self.repository.send_message(
+                msgtypes.SET_FIELD,
+                self.dobject_id,
+                field_id,
+                args,
+            )
+        return inner
+
+    def __init__(self, repository, dobject_id, fields):
+        self.repository = repository
+        super().__init__(dobject_id, fields)
+        self.receiver_methods = [None] * len(self._dfields)
+        for field_id, (name, _, policy) in enumerate(self._dfields):
+            sender_name = 'do_' + name
+            receiver_name = 'on_' + name
+            if policy & (fp.CLIENT_SEND|fp.OWNER_SEND):
+                if not hasattr(self, sender_name):
+                    raise Exception("Method {} is missing".format(sender_name))
+                sender_wrapper = self._dfield_sending_field_sender(
+                    dobject_id,
+                    field_id,
+                    getattr(self, sender_name),
+                )
+                setattr(self, sender_name, sender_wrapper)
+                if hasattr(self, receiver_name):
+                    raise Exception("Method {} should not be set on a field "
+                                    "with client-side sender policy"
+                                    "".format(receiver_name))
+            elif policy & (fp.CLIENT_RECEIVE|fp.OWNER_RECEIVE):
+                if hasattr(self, sender_name):
+                    raise Exception("Method {} should not be set on a field "
+                                    "with client-side receiver policy"
+                                    "".format(sender_name))
+                if not hasattr(self, receiver_name):
+                    raise Exception("Method {} is missing"
+                                    "".format(receiver_name))
+                self.receiver_methods[field_id] = getattr(self, receiver_name)
+        self.creation_hook()
+
+    def creation_hook(self):
+        pass
+
+    def handle_field_update(self, field_id, values):
+        self.receiver_methods[field_id](*values)
+
+    def become_owner(self):
+        pass

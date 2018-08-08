@@ -5,7 +5,7 @@ import logging
 from pandamonium.base import BaseComponent
 from pandamonium.constants import channels, msgtypes
 from pandamonium.constants import field_policies as fp
-from pandamonium.dobject import DistributedObject, Recipient, Zone
+from pandamonium.dobject import Recipient, Zone
 from pandamonium.util import IDGenerator, AssociativeTable, BijectiveMap
 
 
@@ -22,7 +22,10 @@ class BaseStateKeeper:
 
 class SimpleStateKeeper(BaseStateKeeper):
     def __init__(self, dclasses):
-        self.dclasses = dclasses
+        self.dclasses = [dclasses[dclass_name]
+                         for dclass_name in sorted(dclasses)]
+        for dclass_id, dclass in enumerate(self.dclasses):
+            dclass.dclass_id = dclass_id
         self.state = AssociativeTable('recipients', 'zones', 'dobjects')
         # FIXME: Recipients and zones should be BijectiveMaps as well.
         self.recipients = AssociativeTable('r_id', 'r_object')
@@ -57,7 +60,7 @@ class SimpleStateKeeper(BaseStateKeeper):
                     recipient,
                     msgtypes.CREATE_DOBJECT_VIEW,
                     dobject_id,
-                    dobject.dclass,
+                    dobject.dclass_id,
                     dobject.storage,
                 )
 
@@ -79,11 +82,11 @@ class SimpleStateKeeper(BaseStateKeeper):
             self.recipients._assoc(recipient_id, recipient)
             self.state.recipients.add(recipient)
 
-    def create_dobject(self, dobject_id, dclass, fields):
+    def create_dobject(self, dobject_id, dclass_id, fields):
         with self.state_lock:
-            dobject = DistributedObject(
+            dclass = self.dclasses[dclass_id]
+            dobject = dclass(
                 dobject_id,
-                self.dclasses[dclass],
                 fields,
             )
             self.dobjects[dobject_id] = dobject
@@ -208,8 +211,8 @@ class SimpleStateKeeper(BaseStateKeeper):
     def set_field(self, source, dobject_id, field_id, value):
         with self.state_lock:
             dobject = self.dobjects[dobject_id]
-            field = dobject.dclass.fields[field_id]
-            policy = field.policy
+            # FIXME: Jam this into DClass somehow?
+            _, field_type, policy = dobject._dfields[field_id]
             # Is the source even allowed to set this field?
             if (policy & fp.CLIENT_SEND) or \
                ((policy & fp.OWNER_SEND) and source == dobject.owner) or \
@@ -248,7 +251,8 @@ class SimpleStateKeeper(BaseStateKeeper):
                     )
                 # NOTE: else? I mean, there MUST be a sending policy?
             else:
-                raise Exception  # FIXME: Proper exception class, plz!
+                raise Exception("{} tried to set {} field {} to {}. "
+                                "".format(source, dobject, field_id, value))
         self._work_emission_queue()
 
 
@@ -257,7 +261,6 @@ class BaseStateServer(BaseComponent):
     individual_channel = 17  # FIXME: Override in internal sample. Also, assign
                             # a free channel dynamically.
     dobject_ids = (0, 999999)
-    dobject_class = DistributedObject
 
     def __init__(self):
         self.id_gen = IDGenerator(id_range=self.dobject_ids)
