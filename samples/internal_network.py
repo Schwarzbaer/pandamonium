@@ -105,29 +105,40 @@ class AuthServiceClientView(ClientView, AuthService, DirectObject):
 
 class Avatar(DClass):
     dfield_move_command = ((float, float), fp.OWNER_SEND|fp.AI_RECEIVE)
-    dfield_position = ((float, float), fp.AI_SEND|fp.OWNER_RECEIVE|fp.RAM)
+    dfield_position = ((float, float, float, bool), # x, y, h, still_moving
+                       fp.AI_SEND|fp.OWNER_RECEIVE|fp.RAM)
 
 
 class AvatarAIView(AIView, Avatar):
     def creation_hook(self):
         self.repository.avatars.add(self)
         self.movement = [0.0, 0.0]
-        self.position = [0.0, 0.0] # FIXME: From field value
+        self.nodepath = NodePath("math")  # FIXME: Get x/y/h from field values
 
     def on_move_command(self, source, forward, right):
         self.movement = [forward, right]
 
-    def do_position(self, x, y):
-        return (x, y)
+    def do_position(self, x, y, h, still_moving):
+        return (x, y, h, still_moving)
 
     def update_position(self, dt):
-        speed = 3.0
+        forward_speed = 3.0
+        turn_speed = 90.0
         if self.movement != [0.0, 0.0]:
-            self.position = [
-                self.position[0] + self.movement[1] * dt * speed,
-                self.position[1] + self.movement[0] * dt * speed,
-            ]
-            self.do_position(*self.position)
+            self.nodepath.set_h(
+                self.nodepath,
+                self.movement[1] * dt * turn_speed * -1,
+            )
+            self.nodepath.set_pos(
+                self.nodepath,
+                0, self.movement[0] * dt * forward_speed, 0,
+            )
+            self.do_position(
+                self.nodepath.get_x(),
+                self.nodepath.get_y(),
+                self.nodepath.get_h(),
+                True,
+            )
 
 
 class AvatarClientView(ClientView, Avatar, DirectObject):
@@ -160,8 +171,9 @@ class AvatarClientView(ClientView, Avatar, DirectObject):
         self.movement[1] = self.movement[1] + right
         return tuple(self.movement)
 
-    def on_position(self, x, y):
+    def on_position(self, x, y, h, still_moving):
         self.avatar.set_pos(x, y, 0)
+        self.avatar.set_h(h)
 
 
 # This is merely needed for sorting to derive class IDs, and should hopefully
