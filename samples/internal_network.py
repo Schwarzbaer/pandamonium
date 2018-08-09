@@ -21,13 +21,7 @@
 #   sets interest for the client in the first contact zone. Now the client sees
 #   the dobject in it, too.
 # TODO:
-# * Demonstrate that the dobject works by sending messages for it back and
-#   forth.
 # * Break it all down again.
-# * A Panda3D sample (without auth, which is what this first dobject would
-#   typically be for) should have the AI create a dobject for each client, set
-#   that client as owner, and let them all move around in 3D space until the
-#   client disconnects.
 
 
 import sys
@@ -39,9 +33,6 @@ from direct.showbase.DirectObject import DirectObject
 from direct.actor.Actor import Actor
 from direct.showbase.ShowBase import ShowBase
 
-from pandamonium.constants import (
-    msgtypes,
-)
 from pandamonium.constants import field_policies as fp
 from pandamonium.util import IDGenerator
 from pandamonium.core import (
@@ -239,6 +230,7 @@ class DemoAIRepository(AIRepository, InternalAIConnector):
         self.set_interest(client_id, FIRST_CONTACT_ZONE)
 
     def create_dobject(self, dclass_id, fields, callback=None):
+        # FIXME: Move callback mechanism into AIRepository
         # FIXME: Resolve dclass_id from name
         if callback is not None:
             token = self.token_gen.get_new()
@@ -248,6 +240,7 @@ class DemoAIRepository(AIRepository, InternalAIConnector):
             super().create_dobject(dclass_id, fields)
 
     def handle_dobject_created(self, dobject_id, token):
+        # FIXME: Move callback mechanism into AIRepository
         super().handle_dobject_created(dobject_id, token)
         callback = self.token_callbacks[token]
         del self.token_callbacks[token]
