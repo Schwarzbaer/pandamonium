@@ -20,10 +20,39 @@ class channels:
     CLIENTS = (100000, 999999)
 
 
+class FixedSizeFieldType:
+    def __init__(self, ftype, length):
+        self.ftype = ftype
+        self.length = length
+
+
+class VariableSizeFieldType:
+    def __init__(self, ftype):
+        self.ftype = ftype
+
+
+class ListFieldType:
+    def __init__(self):
+        pass
+
+
+class field_types:
+    CHANNEL = FixedSizeFieldType(int, 4)
+    ZONE = FixedSizeFieldType(int, 4)
+    DCLASS = FixedSizeFieldType(int, 2)
+    DOBJECT_ID = FixedSizeFieldType(int, 4)
+    FIELD_ID = FixedSizeFieldType(int, 2)
+    FIELDS = ListFieldType()
+    MESSAGE_TYPE = FixedSizeFieldType(int, 2)
+    STRING = VariableSizeFieldType(str)
+    TOKEN = FixedSizeFieldType(int, 4)
+
+
 class MsgType:
-    def __init__(self, num_id, str_repr):
+    def __init__(self, num_id, str_repr, *fields):
         self.num_id = num_id
         self.str_repr = str_repr
+        self.fields = fields
 
     def __eq__(self, other):
         return self.num_id == other.num_id
@@ -33,45 +62,172 @@ class MsgType:
 
 
 class msgtypes:
+    # These are just for testing
+    # FIXME: Get them their own number space
+    TEST_NO_ARGS = MsgType(1234, "TEST_NO_ARGS")
+    TEST_THREE_CHANNEL_ARGS = MsgType(
+        1235,
+        "TEST_THREE_CHANNEL_ARGS",
+        field_types.CHANNEL,
+        field_types.CHANNEL,
+        field_types.CHANNEL,
+    )
     # Announce to all AIs that an AI has connected
-    AI_CONNECTED = MsgType(0, "AI_CONNECTED")
+    AI_CONNECTED = MsgType(0, "AI_CONNECTED", field_types.CHANNEL)
     # Tell an AI its own channel
-    AI_CHANNEL_ASSIGNED = MsgType(1, "AI_CHANNEL_ASSIGNED")
+    AI_CHANNEL_ASSIGNED = MsgType(1, "AI_CHANNEL_ASSIGNED", field_types.CHANNEL)
     # Announce to all AIs that a client has connected
-    CLIENT_CONNECTED = MsgType(10, "CLIENT_CONNECTED")
+    CLIENT_CONNECTED = MsgType(10, "CLIENT_CONNECTED", field_types.CHANNEL)
     # Annouce that a client has disconnected
-    CLIENT_DISCONNECTED = MsgType(11, "CLIENT_DISCONNECTED")
+    CLIENT_DISCONNECTED = MsgType(
+        11,
+        "CLIENT_DISCONNECTED",
+        field_types.CHANNEL, # client
+    )
     # Force a client's disconnection
-    DISCONNECT_CLIENT = MsgType(12, "DISCONNECT_CLIENT")
+    DISCONNECT_CLIENT = MsgType(
+        12,
+        "DISCONNECT_CLIENT",
+        field_types.CHANNEL, # client
+        field_types.STRING, # reason
+    )
     # -> client repo
     CONNECTED = MsgType(1000, "CONNECTED")
     # -> client repo
-    DISCONNECTED = MsgType(1001, "DISCONNECTED")
+    DISCONNECTED = MsgType(
+        1001,
+        "DISCONNECTED",
+        field_types.STRING, # reason
+    )
     # client repo -> client agent
-    DISCONNECT = MsgType(1002, "DISCONNECT")
+    DISCONNECT = MsgType(
+        1002,
+        "DISCONNECT",
+        field_types.CHANNEL, # client
+        field_types.STRING, # reason
+    )
     # ai repo -> state server
-    SET_INTEREST = MsgType(2000, "SET_INTEREST")
+    SET_INTEREST = MsgType(
+        2000,
+        "SET_INTEREST",
+        field_types.CHANNEL, # client / AI
+        field_types.ZONE,
+    )
     # ai repo -> state server
-    UNSET_INTEREST = MsgType(2001, "UNSET_INTEREST")
+    UNSET_INTEREST = MsgType(
+        2001,
+        "UNSET_INTEREST",
+        field_types.CHANNEL, # client / AI
+        field_types.ZONE,
+    )
     # ai repo -> state server
-    CREATE_DOBJECT = MsgType(2002, "CREATE_DOBJECT")
+    CREATE_DOBJECT = MsgType(
+        2002,
+        "CREATE_DOBJECT",
+        field_types.DCLASS,
+        field_types.FIELDS,
+        field_types.TOKEN,
+    )
     # state server -> ai repo
-    DOBJECT_CREATED = MsgType(2002, "DOBJECT_CREATED")
+    DOBJECT_CREATED = MsgType(
+        2002,
+        "DOBJECT_CREATED",
+        field_types.DOBJECT_ID,
+        field_types.TOKEN,
+    )
     # ai -> state server
-    ADD_TO_ZONE = MsgType(2003, "ADD_TO_ZONE")
+    ADD_TO_ZONE = MsgType(
+        2003,
+        "ADD_TO_ZONE",
+        field_types.DOBJECT_ID,
+        field_types.ZONE,
+    )
     # ai -> state server
-    REMOVE_FROM_ZONE = MsgType(2004, "REMOVE_FROM_ZONE")
+    REMOVE_FROM_ZONE = MsgType(
+        2004,
+        "REMOVE_FROM_ZONE",
+        field_types.DOBJECT_ID,
+        field_types.ZONE,
+    )
     # ai repo -> state server
-    SET_AI = MsgType(2010, "SET_AI")
+    SET_AI = MsgType(
+        2010,
+        "SET_AI",
+        field_types.CHANNEL, # ai
+        field_types.DOBJECT_ID,
+    )
     # ai repo -> state server
-    SET_OWNER = MsgType(2011, "SET_OWNER")
+    SET_OWNER = MsgType(
+        2011,
+        "SET_OWNER",
+        field_types.CHANNEL, # owner
+        field_types.DOBJECT_ID,
+    )
     # state server -> interested
-    CREATE_DOBJECT_VIEW = MsgType(2020, "CREATE_DOBJECT_VIEW")
+    CREATE_DOBJECT_VIEW = MsgType(
+        2020,
+        "CREATE_DOBJECT_VIEW",
+        field_types.DOBJECT_ID,
+        field_types.DCLASS,
+        field_types.FIELDS,
+    )
     # state server -> ai repo
-    CREATE_AI_VIEW = MsgType(2021, "CREATE_AI_VIEW")
+    CREATE_AI_VIEW = MsgType(
+        2021,
+        "CREATE_AI_VIEW",
+        field_types.DOBJECT_ID,
+        field_types.DCLASS,
+        field_types.FIELDS,
+    )
     # state server -> owner repo
-    BECOME_OWNER = MsgType(2022, "BECOME_OWNER")
+    BECOME_OWNER = MsgType(
+        2022,
+        "BECOME_OWNER",
+        field_types.DOBJECT_ID,
+    )
     # repo -> state_server
-    SET_FIELD = MsgType(2030, "SET_FIELD")
+    SET_FIELD = MsgType(
+        2030,
+        "SET_FIELD",
+        field_types.DOBJECT_ID,
+        field_types.FIELD_ID,
+        # FIXME: Values
+    )
     # state server -> repo
-    FIELD_UPDATE = MsgType(2031, "FIELD_UPDATE")
+    FIELD_UPDATE = MsgType(
+        2031,
+        "FIELD_UPDATE",
+        field_types.DOBJECT_ID,
+        field_types.FIELD_ID,
+        # FIXME: Values
+    )
+
+all_message_types = [
+    msgtypes.TEST_NO_ARGS,
+    msgtypes.TEST_THREE_CHANNEL_ARGS,
+    msgtypes.AI_CONNECTED,
+    msgtypes.AI_CHANNEL_ASSIGNED,
+    msgtypes.CLIENT_CONNECTED,
+    msgtypes.CLIENT_DISCONNECTED,
+    msgtypes.DISCONNECT_CLIENT,
+    msgtypes.CONNECTED,
+    msgtypes.DISCONNECTED,
+    msgtypes.DISCONNECT,
+    msgtypes.SET_INTEREST,
+    msgtypes.UNSET_INTEREST,
+    msgtypes.CREATE_DOBJECT,
+    msgtypes.DOBJECT_CREATED,
+    msgtypes.ADD_TO_ZONE,
+    msgtypes.REMOVE_FROM_ZONE,
+    msgtypes.SET_AI,
+    msgtypes.SET_OWNER,
+    msgtypes.CREATE_DOBJECT_VIEW,
+    msgtypes.CREATE_AI_VIEW,
+    msgtypes.BECOME_OWNER,
+    msgtypes.SET_FIELD,
+    msgtypes.FIELD_UPDATE,
+]
+
+
+message_type_by_id = {message_type.num_id: message_type
+                      for message_type in all_message_types}

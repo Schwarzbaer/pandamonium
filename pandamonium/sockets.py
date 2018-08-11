@@ -58,21 +58,20 @@ class NetworkListener(BaseListener):
         self.socket.listen()
         self.socket.settimeout(self.timeout)
 
-        self.listening_sockets = []
-        self.listeners = self.listeners
+        self.listener_thread = None
         self.keep_running = True
         self.connections = {}
         self.connections_lock = Lock()
 
     def listen(self):
-        for _ in range(self.listeners):
-            logger.info("{} adding listener".format(self))
-            t = Thread(target=self.await_connection)
-            self.listening_sockets.append(t)
-            t.start()
-            logger.info("{} started listener thread {}".format(self, t.name))
+        logger.debug("{} starting listener".format(self))
+        t = Thread(target=self._await_connection)
+        self.listener_thread = t
+        t.start()
+        logger.info("{} started listener".format(self))
+        # FIXME: if not self.threaded_connections: self._start_single_reader()
 
-    def await_connection(self):
+    def _await_connection(self):
         """Used internally by the listener threads. Accept new connections and
         have them set up. Also check periodically for the shutdown."""
         while self.keep_running:
@@ -83,14 +82,16 @@ class NetworkListener(BaseListener):
                 self._setup_connection(connection)
             except socket.timeout:
                 pass
-        logger.info("Stopping listener.")
+        logger.info("{} stopped listener".format(self))
 
     def _setup_connection(self, connection):
-        connection_id = self.id_gen.get_new()
-        # TODO: Check addr against a blacklist
         sock, addr = connection
+        connection_id = self.id_gen.get_new()
+        logger.info("{} opens connection from {} (id {})"
+                    "".format(self, addr, connection_id))
+        # TODO: Check addr against a blacklist
         if self.threaded_connections:
-            thread = Thread(target=self.threaded_read, args=(connection_id, ))
+            thread = Thread(target=self._threaded_read, args=(connection_id, ))
             read_lock = Lock() # Since only one thread reads the socket, maybe
                                # only have the write lock?
             write_lock = Lock()
@@ -119,25 +120,35 @@ class NetworkListener(BaseListener):
                 # FIXME: What if a message to a stale connection comes in later?
                 del self.connections[connection]
 
-    def threaded_read(self, connection_id):
+    def _threaded_read(self, connection_id):
         full_connection = self.connections[connection_id]
         sock, addr, thread, read_lock, write_lock = full_connection
         logger.info("Starting thread for connection {} ({})".format(
             connection_id, addr))
         # FIXME: If connection has been closed, stop loop too, and clean up.
-        while self.keep_running:
-            with read_lock:
-                try:
-                    # TODO: Implement reading.
-                    pass
-                except socket.timeout:
-                    pass
+        message = b''
+        try:
+            while self.keep_running:
+                with read_lock:
+                    try:
+                        incoming = sock.recv(1024)
+                        if incoming == b'':
+                            raise ConnectionResetError
+                        message += incoming
+                        print(message)
+                    except socket.timeout:
+                        pass
+        except ConnectionResetError:
+            self.close_connection(connection_id)
         logger.info("Stopping thread for connection {}".format(connection_id))
+
+    def close_connection(self, connection_id):
+        logger.fatal("Implement closing for connection {}, please"
+                      "".format(connection_id))
 
     def shutdown(self):
         self.keep_running = False
-        for t in self.listening_sockets:
-            t.join()
+        self.listener_thread.join()
         # TODO: Close open connections, after unsubscribing them from MD
         # TODO: if self.threaded_connections: reader_threads.join()
         self.socket.shutdown(socket.SHUT_RDWR)
@@ -147,20 +158,121 @@ class NetworkListener(BaseListener):
         raise NotImplementedError
 
 
-class AIListener(NetworkListener):
+class NetworkAIListener(NetworkListener):
     interface = '127.0.0.1'
     port = 50550
-    listeners = 1
     timeout = 5.0
-    threaded_connections = False
+    threaded_connections = True
+
+    def handle_connection_message(self, from_channel, to_channel, message_type,
+                                  *args):
+        logger.info("AIAgent got connection message to handle: {} -> {} ({})"
+                    "".format(
+                        from_channel, to_channel, message_type,
+                    )
+        )
+        self.send_message(
+            self.connections[to_channel],
+            from_channel,
+            to_channel,
+            message_type,
+            *args,
+        )
+
+    def handle_broadcast_message(self, from_channel, to_channel, message_type,
+                                  *args):
+        logger.info("AIAgent got broadcast message to handle: {} -> {} ({})"
+                    "".format(
+                        from_channel, to_channel, message_type,
+                    )
+        )
+        for connection in self.connections.values():
+            self.send_message(
+                connection,
+                from_channel,
+                to_channel,
+                message_type,
+                *args,
+            )
+
+    def handle_incoming_message(self, from_channel, to_channel, message_type,
+                                  *args):
+        logger.info("AIAgent got incoming message to handle: {} -> {} ({})"
+                    "".format(
+                        from_channel, to_channel, message_type,
+                    )
+        )
+        # if from_channel is None:
+        #     from_channel = self.channel
+        # self.message_director.create_message(
+        #     from_channel,
+        #     to_channel,
+        #     message_type,
+        #     *args,
+        # )
+
+    def send_message(self, connection, from_channel, to_channel, message_type,
+                     *args):
+        (sock, addr, thread, read_lock, write_lock) = connection
+        message = self.pack_message(
+            from_channel,
+            to_channel,
+            message_type,
+            *args,
+        )
+        print(message)
+        with write_lock:
+            sock.send(message)
 
 
-class ClientListener(NetworkListener):
+    def __repr__(self):
+        return "<AI agent listener>"
+
+
+class NetworkClientListener(NetworkListener):
     interface = '0.0.0.0'
     port = 50551
-    listeners = 1
     timeout = 5.0
-    threaded_connections = False
+    threaded_connections = True
+
+    def handle_connection_message(self, from_channel, to_channel, message_type,
+                                  *args):
+        logger.debug("ClientAgent got connection message to handle: "
+                     "{} -> {} ({})".format(
+                         from_channel, to_channel, message_type,
+                    )
+        )
+        # if message_type == msgtypes.DISCONNECT_CLIENT:
+        #     client_id = to_channel
+        #     reason = args[0]
+        #     self.handle_disconnect_client(client_id, reason)
+        # else:
+        #     self.listeners[to_channel].handle_message(
+        #         message_type,
+        #         *args,
+        #     )
+
+    def handle_incoming_message(self, connection_id, message_type, *args):
+        logger.debug("ClientAgent got incoming message to handle: "
+                     "{} -> {} ({})".format(
+                         from_channel, to_channel, message_type,
+                    )
+        )
+        # if message_type == msgtypes.DISCONNECT:
+        #     client_id = from_channel
+        #     self.handle_disconnect(client_id)
+        # elif message_type == msgtypes.SET_FIELD:
+        #     self.message_director.create_message(
+        #         connection_id,
+        #         channels.ALL_STATE_SERVERS,  # FIXME: *ALL*?
+        #         message_type,
+        #         *args,
+        #     )
+        # else:
+        #     raise NotImplementedError
+
+    def __repr__(self):
+        return "<client agent listener>"
 
 
 class NetworkConnector(BaseConnector):
@@ -169,15 +281,56 @@ class NetworkConnector(BaseConnector):
 
     def connect(self):
         self.socket.connect((self.host, self.port))
-        # TODO: Start reader thread
+        #logger.debug("{} starting reader thread".format(self))
+        self.keep_reading = True
+        #self.read_thread = Thread(target=self._read_socket)
+        #self.read_thread.start()
+
+    def _read_socket(self):
+        datagram = b''
+        try:
+            while self.keep_reading:
+                try:
+                    incoming = self.socket.recv(1024)
+                    datagram += incoming
+                    print(datagram)
+                    datagram = self.handle_incoming_datagram(datagram)
+                except socket.timeout:
+                    pass
+        except ConnectionResetError:
+            self.close_connection()
+
+    def close_connection(self):
+        logger.fatal("Implement close_connection, please")
 
 
-class AIConnector(NetworkConnector):
+class NetworkAIConnector(NetworkConnector):
     host ='127.0.0.1'
     port = 50550
 
+    def handle_incoming_datagram(self, datagram):
+        message, datagram = self.unpack_message(datagram)
+        [from_channel, to_channel, message_type, *args] = message
+        self.handle_message(
+            from_channel,
+            to_channel,
+            message_type,
+            *args,
+        ) # FIXME: This should write into a queue instead, and i.e. a Panda3D
+          # task should process what's in it.
+        return datagram
 
-class ClientConnector(NetworkConnector):
+    def send_message(self, from_channel, to_channel, message_type, *args):
+        datagram = self.pack_message(
+            from_channel,
+            to_channel,
+            message_type,
+            *args,
+        )
+        self.socket.send(datagram)
+
+
+class NetworkClientConnector(NetworkConnector):
     def __init__(self, host='127.0.0.1', port=50551):
         self.host = host
         self.port = port
