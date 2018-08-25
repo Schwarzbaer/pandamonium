@@ -133,17 +133,14 @@ class BasePacker:
                              "".format(mismatches))
         return [v for _, v in field_values], datagram
 
-
-class AIPacker(BasePacker):
-    def pack_message(self, from_channel, to_channel, message_type, *args):
-        header = b''.join([
-            self._to_network(from_channel, field_types.CHANNEL),
-            self._to_network(to_channel, field_types.CHANNEL),
-            self._to_network(message_type.num_id, field_types.MESSAGE_TYPE),
-        ])
+    def pack_message_body(self, message_type, *args):
+        packed_message_type = self._to_network(
+            message_type.num_id,
+            field_types.MESSAGE_TYPE,
+        )
         if message_type == msgtypes.CREATE_DOBJECT:
             dclass, field_values, token = args
-            body = b''.join([
+            packed_args = b''.join([
                 self._to_network(dclass, field_types.DCLASS),
                 self.pack_fields(dclass, field_values),
                 self._to_network(token, field_types.TOKEN),
@@ -154,7 +151,7 @@ class AIPacker(BasePacker):
             dobject_id, dclass, fields = args
             with self.dclasses_lock:
                 self.dclasses_by_dobject_id[dobject_id] = dclass
-            body = b''.join([
+            packed_args = b''.join([
                 self._to_network(dobject_id, field_type.DOBJECT_ID),
                 self.pack_fields(dclass, fields),
             ])
@@ -162,25 +159,17 @@ class AIPacker(BasePacker):
             dobject_id, field_id, field_values = args
             with self.dclasses_lock:
                 dclass = self.dclasses_by_dobject_id[dobject_id]
-            body = b''.join([
+            packed_args = b''.join([
                 self._to_network(dobject_id, field_type.DOBJECT_ID),
                 self._to_network(field_id, field_type.FIELD_ID),
                 self.pack_field(dclass, field_id, field_values),
             ])
         else:
-            body = self.pack_args(message_type, *args)
-        message = b''.join([header, body])
+            packed_args = self.pack_args(message_type, *args)
+        message = b''.join([packed_message_type, packed_args])
         return message
 
-    def unpack_message(self, datagram):
-        from_channel, datagram = self._from_network(
-            datagram,
-            field_types.CHANNEL,
-        )
-        to_channel, datagram = self._from_network(
-            datagram,
-            field_types.CHANNEL,
-        )
+    def unpack_message_body(self, datagram):
         message_type_id, datagram = self._from_network(
             datagram,
             field_types.MESSAGE_TYPE,
@@ -212,6 +201,29 @@ class AIPacker(BasePacker):
             args = [dobject_id, dclass, field_values]
         else:
             args, datagram = self.unpack_args(message_type, datagram)
+        return ([message_type] + args, datagram)
+
+
+class AIPacker(BasePacker):
+    def pack_message(self, from_channel, to_channel, message_type, *args):
+        channels = b''.join([
+            self._to_network(from_channel, field_types.CHANNEL),
+            self._to_network(to_channel, field_types.CHANNEL),
+        ])
+        message_body = self.pack_message_body(message_type, *args)
+        message = b''.join([channels, message_body])
+        return message
+
+    def unpack_message(self, datagram):
+        from_channel, datagram = self._from_network(
+            datagram,
+            field_types.CHANNEL,
+        )
+        to_channel, datagram = self._from_network(
+            datagram,
+            field_types.CHANNEL,
+        )
+        [message_type, *args], datagram = self.unpack_message_body(datagram)
         return ([from_channel, to_channel, message_type] + args, datagram)
 
 
@@ -246,10 +258,5 @@ class ClientPacker(BasePacker):
         return message
 
     def unpack_message(self, datagram):
-        message_type_id, datagram = self._from_network(
-            datagram,
-            field_types.MESSAGE_TYPE,
-        )
-        message_type = message_type_by_id[message_type_id]
-        args, datagram = self.unpack_args(message_type, datagram)
-        return ([message_type] + args, datagram)
+        message, datagram = self.unpack_message_body(datagram)
+        return message, datagram
