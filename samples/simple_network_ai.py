@@ -18,6 +18,8 @@ logger = logging.getLogger(__name__)
 
 
 class DemoAIRepository(AIPacker, NetworkAIConnector, GameAIRepository):
+    dclasses = dclasses
+
     def __init__(self):
         NetworkAIConnector.__init__(self)
         GameAIRepository.__init__(self)
@@ -32,6 +34,8 @@ class DemoAIRepository(AIPacker, NetworkAIConnector, GameAIRepository):
 
 
 class DemoAI(ShowBase):
+    dclasses = dclasses
+
     def __init__(self):
         super().__init__()
         self.disable_mouse()

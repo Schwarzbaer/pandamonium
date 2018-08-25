@@ -19,6 +19,10 @@ class BaseStateKeeper:
     def unset_interest(self, recipient, zone):
         raise NotImplementedError
 
+    def get_dobject_fields(self, dobject_id):
+        raise NotImplementedError
+        self.state_server.get_dobject_fields(dobject_id)
+
 
 class SimpleStateKeeper(BaseStateKeeper):
     def __init__(self, dclasses):
@@ -38,6 +42,11 @@ class SimpleStateKeeper(BaseStateKeeper):
         # that'll schedule event processing into isolated parallelity?
         self.state_lock = Lock()
         self.emission_queue = Queue()
+
+    def get_dobject_fields(self, dobject_id):
+        with self.state_lock:
+            dobject = self.dobjects[dobject_id].dfields
+        return dobject
 
     def _queue_message(self, *message):
         # FIXME: Make sure that all data is copies.

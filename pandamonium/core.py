@@ -37,24 +37,8 @@ class BaseAgent(BaseComponent):
                 *args,
             )
 
-
-class ClientAgent(BaseAgent):
-    all_connections = channels.ALL_CLIENTS
-    connection_ids = channels.CLIENTS
-
-    def handle_connection(self, client_id, addr):
-        logger.info("Connection from client {} ({})".format(client_id, addr))
-        self.message_director.create_message(
-            client_id,
-            client_id,
-            msgtypes.CONNECTED,
-        )
-        self.message_director.create_message(
-            client_id,
-            channels.ALL_AIS,
-            msgtypes.CLIENT_CONNECTED,
-            client_id,
-        )
+    def get_dobject_dclass(self, dobject_id):
+        self.state_server.get_dobject_fields(dobject_id)
 
 
 class AIAgent(BaseAgent):
@@ -75,6 +59,60 @@ class AIAgent(BaseAgent):
             msgtypes.AI_CONNECTED,
             ai_id,
         )
+
+    def handle_incoming_message(self, from_channel, to_channel, message_type,
+                                  *args):
+        logger.info("AIAgent got incoming message to handle: {} -> {} ({})"
+                    "".format(
+                        from_channel, to_channel, message_type,
+                    )
+        )
+        if from_channel is None:
+            from_channel = self.channel
+        self.message_director.create_message(
+            from_channel,
+            to_channel,
+            message_type,
+            *args,
+        )
+
+
+class ClientAgent(BaseAgent):
+    all_connections = channels.ALL_CLIENTS
+    connection_ids = channels.CLIENTS
+
+    def handle_connection(self, client_id, addr):
+        logger.info("Connection from client {} ({})".format(client_id, addr))
+        self.message_director.create_message(
+            client_id,
+            client_id,
+            msgtypes.CONNECTED,
+        )
+        self.message_director.create_message(
+            client_id,
+            channels.ALL_AIS,
+            msgtypes.CLIENT_CONNECTED,
+            client_id,
+        )
+
+    def handle_incoming_message(self, connection_id, message_type, *args):
+        logger.debug("ClientAgent got incoming message to handle: "
+                     "{} -> {} ({})".format(
+                         from_channel, to_channel, message_type,
+                    )
+        )
+        if message_type == msgtypes.DISCONNECT:
+            client_id = from_channel
+            self.handle_disconnect(client_id)
+        elif message_type == msgtypes.SET_FIELD:
+            self.message_director.create_message(
+                connection_id,
+                channels.ALL_STATE_SERVERS,  # FIXME: *ALL*?
+                message_type,
+                *args,
+            )
+        else:
+            raise NotImplementedError
 
 
 # TODO

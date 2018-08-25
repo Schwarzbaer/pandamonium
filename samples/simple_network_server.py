@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 
 class DemoAIAgent(AIPacker, AIAgent, NetworkAIListener):
     timeout = 0.2
+    dclasses = dclasses
 
     def handle_connection(self, conn_id, addr):
         print("AI {} connected from {}".format(conn_id, addr))
@@ -26,6 +27,7 @@ class DemoAIAgent(AIPacker, AIAgent, NetworkAIListener):
 
 class DemoClientAgent(ClientPacker, ClientAgent, NetworkClientListener):
     timeout = 0.2
+    dclasses = dclasses
 
     def handle_connection(self, conn_id, addr):
         print("Client {} connected from {}".format(conn_id, addr))

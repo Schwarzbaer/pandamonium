@@ -19,6 +19,13 @@ from pandamonium.repository import (
 
 
 # Here's a quick overview of what this sample does:
+# * First, you start the server. It'll import `dclasses` from the game's code,
+#   so that it knows about what classes of dobjects there'll be.
+
+
+
+
+
 # * Cobble together the server, consisting of StateServer, AIAgent, ClientAgent,
 #   and MessageDirector.
 # * Create and "connect" an AIRepository.
@@ -84,7 +91,7 @@ class AuthServiceClientView(ClientView, AuthService, DirectObject):
 class Avatar(DClass):
     dfield_move_command = ((float, float), fp.OWNER_SEND|fp.AI_RECEIVE)
     dfield_position = ((float, float, float, bool), # x, y, h, still_moving
-                       fp.AI_SEND|fp.OWNER_RECEIVE|fp.RAM)
+                       fp.AI_SEND|fp.CLIENT_RECEIVE|fp.RAM)
 
 
 class AvatarAIView(AIView, Avatar):

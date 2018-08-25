@@ -20,20 +20,26 @@ class Zone:
         self.zone_id = zone_id
 
 
-class DClass:
-    def __init__(self, dobject_id, fields, state_server=None):
-        self.dobject_id = dobject_id
-        self.state_server = state_server
-        attr_names = sorted([field for field in dir(self)
-                              if field.startswith('dfield_')])
+class DFieldSorter(type):
+    def __new__(cls, name, bases, dct):
+        dclass = super().__new__(cls, name, bases, dct)
+        dfield_names = sorted([field for field in dir(dclass)
+                               if field.startswith('dfield_')])
         dfields = []
-        for field_id, attr_name in enumerate(attr_names):
-            field_name = attr_name.partition('dfield_')[2]
-            field_attr = getattr(self, attr_name)
+        for field_id, dfield_name in enumerate(dfield_names):
+            field_name = dfield_name.partition('dfield_')[2]
+            field_attr = getattr(dclass, dfield_name)
             field_type = field_attr[0]
             field_policy = field_attr[1]
             dfields.append((field_name, field_type, field_policy))
-        self._dfields = dfields
+        dclass._dfields = dfields
+        return dclass
+
+
+class DClass(metaclass=DFieldSorter):
+    def __init__(self, dobject_id, fields, state_server=None):
+        self.dobject_id = dobject_id
+        self.state_server = state_server
         # TODO: set initial field values
         self.storage = fields
 

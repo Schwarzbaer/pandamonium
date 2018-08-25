@@ -21,31 +21,44 @@ class channels:
 
 
 class FixedSizeFieldType:
-    def __init__(self, ftype, length):
+    def __init__(self, ftype, length, name):
         self.ftype = ftype
         self.length = length
+        self.name = name
+
+    def __repr__(self):
+        return self.name
 
 
 class VariableSizeFieldType:
-    def __init__(self, ftype):
+    def __init__(self, ftype, name):
         self.ftype = ftype
+        self.name = name
+
+    def __repr__(self):
+        return self.name
 
 
 class ListFieldType:
-    def __init__(self):
-        pass
+    def __init__(self, name):
+        self.name = name
+
+    def __repr__(self):
+        return self.name
 
 
 class field_types:
-    CHANNEL = FixedSizeFieldType(int, 4)
-    ZONE = FixedSizeFieldType(int, 4)
-    DCLASS = FixedSizeFieldType(int, 2)
-    DOBJECT_ID = FixedSizeFieldType(int, 4)
-    FIELD_ID = FixedSizeFieldType(int, 2)
-    FIELDS = ListFieldType()
-    MESSAGE_TYPE = FixedSizeFieldType(int, 2)
-    STRING = VariableSizeFieldType(str)
-    TOKEN = FixedSizeFieldType(int, 4)
+    CHANNEL = FixedSizeFieldType(int, 4, "CHANNEL")
+    ZONE = FixedSizeFieldType(int, 4, "ZONE")
+    DCLASS = FixedSizeFieldType(int, 2, "DCLASS")
+    DOBJECT_ID = FixedSizeFieldType(int, 4, "DOBJECT_ID")
+    FIELD_ID = FixedSizeFieldType(int, 2, "FIELD_ID")
+    FIELD_VALUE = ListFieldType("FIELD_VALUE")
+    FIELD_VALUES = ListFieldType("FIELD_VALUES")
+    MESSAGE_TYPE = FixedSizeFieldType(int, 2, "MESSAGE_TYPE")
+    STRING = VariableSizeFieldType(str, "STRING")
+    FLOAT = FixedSizeFieldType(float, 4, "FLOAT")
+    TOKEN = FixedSizeFieldType(int, 4, "TOKEN")
 
 
 class MsgType:
@@ -125,7 +138,7 @@ class msgtypes:
         2002,
         "CREATE_DOBJECT",
         field_types.DCLASS,
-        field_types.FIELDS,
+        field_types.FIELD_VALUES,
         field_types.TOKEN,
     )
     # state server -> ai repo
@@ -169,7 +182,7 @@ class msgtypes:
         "CREATE_DOBJECT_VIEW",
         field_types.DOBJECT_ID,
         field_types.DCLASS,
-        field_types.FIELDS,
+        field_types.FIELD_VALUES,
     )
     # state server -> ai repo
     CREATE_AI_VIEW = MsgType(
@@ -177,7 +190,7 @@ class msgtypes:
         "CREATE_AI_VIEW",
         field_types.DOBJECT_ID,
         field_types.DCLASS,
-        field_types.FIELDS,
+        field_types.FIELD_VALUES,
     )
     # state server -> owner repo
     BECOME_OWNER = MsgType(
@@ -191,7 +204,7 @@ class msgtypes:
         "SET_FIELD",
         field_types.DOBJECT_ID,
         field_types.FIELD_ID,
-        # FIXME: Values
+        field_types.FIELD_VALUE,
     )
     # state server -> repo
     FIELD_UPDATE = MsgType(
@@ -199,7 +212,7 @@ class msgtypes:
         "FIELD_UPDATE",
         field_types.DOBJECT_ID,
         field_types.FIELD_ID,
-        # FIXME: Values
+        field_types.FIELD_VALUE,
     )
 
 all_message_types = [
