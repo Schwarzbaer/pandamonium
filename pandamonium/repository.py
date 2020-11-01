@@ -10,8 +10,8 @@ logger = logging.getLogger(__name__)
 class BaseRepository:
     def __init__(self):
         self.dobjects = {}
-        self.dclasses_by_id = [self.dclasses[dclass_name]
-                               for dclass_name in sorted(self.dclasses)]
+        #self.dclasses_by_id = [self.dclasses[dclass_name]
+        #                       for dclass_name in sorted(self.dclasses)]
 
     def connected(self):
         """Message handler: Network has acknowledged our connection."""

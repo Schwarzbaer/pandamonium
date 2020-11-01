@@ -7,6 +7,7 @@ from pandamonium.util import IDGenerator
 from pandamonium.constants import channels, msgtypes
 from pandamonium.packers import DatagramIncomplete
 
+
 logger = logging.getLogger(__name__)
 
 
@@ -60,9 +61,6 @@ class NetworkListenerConnection:
         self.timeout = 2.0
         self.socket.settimeout(self.timeout)
 
-        self.dclasses_by_dobject_id = {}
-        self.dclasses_lock = Lock()
-
         self.reader_tread = Thread(
             target=self.read_socket,
             name="Reader thread ({})".format(connection_id)
@@ -89,7 +87,6 @@ class NetworkListenerConnection:
                         raise ConnectionResetError
                     datagram += incoming
                     try:
-                        print(datagram)
                         while True:
                             message, datagram = self.agent.unpack_message(
                                 datagram,
@@ -138,6 +135,10 @@ class NetworkListenerConnection:
 class NetworkListener(BaseListener):
     def __init__(self):
         self.id_gen = IDGenerator(id_range=self.connection_ids)
+        self.dclasses_by_id = [self.dclasses[dclass_name]
+                               for dclass_name in sorted(self.dclasses)]
+        self.dclasses_by_dobject_id = {}
+        self.dclasses_lock = Lock()
 
         self.socket = socket.socket()
         self.socket.bind((self.interface, self.port))
@@ -306,25 +307,31 @@ class NetworkClientListener(NetworkListener):
 class NetworkConnector(BaseConnector):
     def __init__(self):
         self.socket = socket.socket()
+        self.dclasses_by_id = [self.dclasses[dclass_name]
+                               for dclass_name in sorted(self.dclasses)]
+        self.datagram = b''
 
     def connect(self):
         self.socket.connect((self.host, self.port))
-        #logger.debug("{} starting reader thread".format(self))
-        self.keep_reading = True
-        #self.read_thread = Thread(target=self._read_socket)
-        #self.read_thread.start()
+        self.socket.settimeout(0.0001)
 
     def _read_socket(self):
-        datagram = b''
         try:
-            while self.keep_reading:
+            while True:
+                incoming = self.socket.recv(1024)
+                if incoming == b'':
+                    raise ConnectionResetError
+                print(incoming)
+                self.datagram += incoming
                 try:
-                    incoming = self.socket.recv(1024)
-                    datagram += incoming
-                    print(datagram)
-                    datagram = self.handle_incoming_datagram(datagram)
-                except socket.timeout:
+                    while True:
+                        self.datagram = self.handle_incoming_datagram(
+                            self.datagram,
+                        )
+                except DatagramIncomplete:
                     pass
+        except socket.timeout:
+            pass
         except ConnectionResetError:
             self.close_connection()
 
@@ -363,6 +370,25 @@ class NetworkClientConnector(NetworkConnector):
         self.host = host
         self.port = port
         super().__init__()
+
+    def handle_incoming_datagram(self, datagram):
+        logger.info("Handling incoming datagram")
+        message, datagram = self.unpack_message(datagram)
+        [message_type, *args] = message
+        self.handle_message(
+            message_type,
+            *args,
+        ) # FIXME: This should write into a queue instead, and i.e. a Panda3D
+          # task should process what's in it.
+        logger.info("Handled incoming datagram")
+        return datagram
+
+    def send_message(self, message_type, *args):
+        datagram = self.pack_message(
+            message_type,
+            *args,
+        )
+        self.socket.send(datagram)
 
 
 # "Internal" "network" means that everything is running in the same process, and

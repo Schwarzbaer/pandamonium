@@ -4,11 +4,9 @@ import logging
 from direct.showbase.ShowBase import ShowBase
 
 from pandamonium.sockets import NetworkAIConnector
-from pandamonium.packers import AIPacker
-
+from pandamonium.packers import AIPacker, DatagramIncomplete
 from game_code import (
     GameAIRepository,
-    GameClientRepository,
     dclasses,
 )
 
@@ -23,6 +21,7 @@ class DemoAIRepository(AIPacker, NetworkAIConnector, GameAIRepository):
     def __init__(self):
         NetworkAIConnector.__init__(self)
         GameAIRepository.__init__(self)
+
     def connected(self):
         print("AI repo has connected.")
 

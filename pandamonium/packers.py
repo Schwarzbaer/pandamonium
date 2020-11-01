@@ -152,7 +152,8 @@ class BasePacker:
             with self.dclasses_lock:
                 self.dclasses_by_dobject_id[dobject_id] = dclass
             packed_args = b''.join([
-                self._to_network(dobject_id, field_type.DOBJECT_ID),
+                self._to_network(dobject_id, field_types.DOBJECT_ID),
+                self._to_network(dclass, field_types.DCLASS),
                 self.pack_fields(dclass, fields),
             ])
         elif message_type in [msgtypes.SET_FIELD, msgtypes.FIELD_UPDATE]:
@@ -229,33 +230,7 @@ class AIPacker(BasePacker):
 
 class ClientPacker(BasePacker):
     def pack_message(self, message_type, *args):
-        header = self._to_network(
-            message_type.num_id,
-            field_types.MESSAGE_TYPE,
-        )
-        if message_type in [
-                msgtypes.CREATE_DOBJECT_VIEW,
-                msgtypes.CREATE_AI_VIEW]:
-            dobject_id, dclass, fields = args
-            with self.dclasses_lock:
-                self.dclasses_by_dobject_id[dobject_id] = dclass
-            body = b''.join([
-                self._to_network(dobject_id, field_type.DOBJECT_ID),
-                self.pack_fields(dclass, fields),
-            ])
-        elif message_type in [msgtypes.SET_FIELD, msgtypes.FIELD_UPDATE]:
-            dobject_id, field_id, field_values = args
-            with self.dclasses_lock:
-                dclass = self.dclasses_by_dobject_id[dobject_id]
-            body = b''.join([
-                self._to_network(dobject_id, field_type.DOBJECT_ID),
-                self._to_network(field_id, field_type.FIELD_ID),
-                self.pack_field(dclass, field_id, field_values),
-            ])
-        else:
-            body = self.pack_args(message_type, *args)
-        message = b''.join([header, body])
-        return message
+        return self.pack_message_body(message_type, *args)
 
     def unpack_message(self, datagram):
         message, datagram = self.unpack_message_body(datagram)

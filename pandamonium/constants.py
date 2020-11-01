@@ -143,21 +143,21 @@ class msgtypes:
     )
     # state server -> ai repo
     DOBJECT_CREATED = MsgType(
-        2002,
+        2003,
         "DOBJECT_CREATED",
         field_types.DOBJECT_ID,
         field_types.TOKEN,
     )
     # ai -> state server
     ADD_TO_ZONE = MsgType(
-        2003,
+        2004,
         "ADD_TO_ZONE",
         field_types.DOBJECT_ID,
         field_types.ZONE,
     )
     # ai -> state server
     REMOVE_FROM_ZONE = MsgType(
-        2004,
+        2005,
         "REMOVE_FROM_ZONE",
         field_types.DOBJECT_ID,
         field_types.ZONE,
